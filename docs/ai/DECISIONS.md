@@ -1,5 +1,14 @@
 # Architectural decisions
 
+## Durable order email delivery — 2026-10-17
+
+- Reuse Phase 2 MailService, its SMTP/capture policy and escaped templates. Confirmation and status mail use the storefront's `$0.00` USD format. PAUSE/PROCESS/FINISHED are processing states; no template claims payment, shipment or delivery and no payment/card fields are persisted.
+- Queue only from successful existing order paths: after all creation items, after PROCESS stock/points work, or after FINISHED. Preserve all marketplace rules and separate-write transaction policy. Same-status retries do not backfill partial failed operations.
+- Use the authenticated buyer's current verified private database email. Missing/unverified email skips queueing without failing checkout. Save recipient and email version; recheck both plus verified/current account eligibility before each attempt. Suppress changed/unverified recipients rather than redirecting old events.
+- Use private `emailDeliveries` records with unique server event keys, template/status, state, attempts, due date, lease/token and saved explicit order snapshots. Read order/item prices, shipping and totals from MongoDB; freeze product names on first attempt. No GraphQL mail creation/inspection operation is added.
+- Send only from the existing batch app, every 30 seconds, at most 20 claims/poll. Use atomic five-minute leases and at most five attempts, with 1/5/15/60-minute delays. Exhausted work becomes FAILED; invalidated recipients become SKIPPED. Production batch startup explicitly sets NODE_ENV=production so it cannot default to development capture.
+- Preserve checkout success when email enqueue/delivery fails. Existing separate order/queue writes cannot guarantee atomic enqueue; no automatic repair scan is authorized because partial marketplace writes exist. SMTP plus database acknowledgement also cannot guarantee exactly-once delivery; reuse a deterministic Message-ID and document recovery duplicate risk.
+
 ## Persistent member notifications — 2026-10-17
 
 - Reuse the existing `notifications` collection and preserve `NotificationStatus.WAIT` / `READ` and prior LIKE/COMMENT types/groups. Add ORDER, SHOP, EVENT and ACCOUNT notification groups/types for the initial marketplace/account triggers.

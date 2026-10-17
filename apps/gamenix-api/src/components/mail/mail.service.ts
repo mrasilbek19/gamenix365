@@ -2,13 +2,16 @@ import { Injectable, Logger, OnModuleDestroy, ServiceUnavailableException } from
 import { ConfigService } from '@nestjs/config';
 import { isEmail } from 'class-validator';
 import * as nodemailer from 'nodemailer';
-import { emailVerificationMessage } from './mail.templates';
+import { emailVerificationMessage, orderEmailMessage } from './mail.templates';
+import { OrderEmailSnapshot } from '../../libs/dto/mail/email-delivery';
+import { EmailDeliveryTemplate } from '../../libs/enums/email-delivery.enum';
 
 interface MailMessage {
     to: string;
     subject: string;
     html: string;
     text: string;
+    messageId?: string;
 }
 
 @Injectable()
@@ -66,6 +69,14 @@ export class MailService implements OnModuleDestroy {
 
     public async sendEmailVerification(to: string, name: string, link: string): Promise<void> {
         await this.sendMail({ to, ...emailVerificationMessage(name, link) });
+    }
+
+    public async sendOrderEmail(to: string, template: EmailDeliveryTemplate, order: OrderEmailSnapshot, deliveryId: string): Promise<void> {
+        await this.sendMail({
+            to,
+            ...orderEmailMessage(template, order),
+            messageId: `<gamenix-order-${deliveryId}@${this.from.split('@')[1]}>`,
+        });
     }
 
     // Development/test inspection only. Never exposed through GraphQL or application logs.

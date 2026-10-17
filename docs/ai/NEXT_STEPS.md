@@ -1,5 +1,13 @@
 # Next steps
 
+## Order email backend complete — 2026-10-17
+
+Confirmation and successful PROCESS/FINISHED status events now queue persistent email for the authenticated buyer's verified address. Optional/unverified email skips safely. The existing batch app delivers and retries using Phase 2 MailService. See [ORDER_EMAILS.md](ORDER_EMAILS.md) for templates, record/state/lease policy and failure limits; no frontend contract changes are needed.
+
+Deployment follow-up: build and run gamenix-batch with the same intended MongoDB and SMTP configuration as the API. The production batch script now explicitly selects production mode. Confirm unique eventKey and due-work/lease indexes in deployment; monitor pending/failed delivery rows privately. Real SMTP mailbox delivery was not exercised. Saved retry schedules survive restarts; failed queue insertion has no automatic recovery scan, and uncertain SMTP acknowledgements can duplicate delivery.
+
+Validation: 282 offline tests plus eight isolated real-MongoDB order-mail tests pass, with 22 older Mongo cases not enabled. API/batch TypeScript and both builds pass. No real SMTP, application-data migration, payment integration, marketplace-policy or frontend work occurred.
+
 ## Persistent notifications backend complete — 2026-10-17
 
 Use the authenticated GraphQL contract for the existing frontend bell:

@@ -13,6 +13,8 @@ import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
+import { OrderEmailService } from '../order-email/order-email.service';
+import { EmailDeliveryTemplate } from '../../libs/enums/email-delivery.enum';
 
 @Injectable()
 export class OrderService {
@@ -26,6 +28,7 @@ export class OrderService {
         @InjectModel('Member')
         private readonly memberModel: Model<Member>,
         private readonly memberService: MemberService,
+        private readonly orderEmailService: OrderEmailService,
         @Optional() private readonly notificationService?: NotificationService,
     ) { }
 
@@ -94,6 +97,7 @@ export class OrderService {
         });
 
         await this.recordOrderItem(result._id, orderItems);
+        await this.orderEmailService.enqueueOrderEmail(memberId, result._id, EmailDeliveryTemplate.ORDER_CREATED, result.orderStatus);
         await this.notificationService?.notifyOrderCreated(
             new Types.ObjectId(String(result._id)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(shopId)),
         );
@@ -201,6 +205,7 @@ export class OrderService {
 
         // Finishing an order only changes its status.
         if (orderStatus === OrderStatus.FINISHED) {
+            await this.orderEmailService.enqueueOrderEmail(memberId, orderId, EmailDeliveryTemplate.ORDER_STATUS_CHANGED, orderStatus);
             await this.notificationService?.notifyOrderStatusChanged(
                 new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
             );
@@ -237,6 +242,7 @@ export class OrderService {
         });
         if (!updatedMember) throw new ForbiddenException('An active member is required');
 
+        await this.orderEmailService.enqueueOrderEmail(memberId, orderId, EmailDeliveryTemplate.ORDER_STATUS_CHANGED, orderStatus);
         await this.notificationService?.notifyOrderStatusChanged(
             new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
         );

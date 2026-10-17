@@ -1,5 +1,13 @@
 # Backend migration: Nestar → Gamenix
 
+## Order confirmation/status email delivery implemented — 2026-10-17
+
+Phase 5 adds private durable `emailDeliveries` records, confirmation/status HTML and text templates, and a gamenix-batch worker using the existing MailService. Successful OrderService creation and PROCESS/FINISHED operations enqueue the authenticated buyer's current verified email; optional/missing/unverified email never fails checkout. SMTP runs only in batch. Templates use stored order/item data, USD formatting and pickup/delivery details; processing states do not claim payment. Existing order writes, stock, points and transitions are unchanged.
+
+Unique event keys deduplicate records. The worker uses atomic expiring leases, saved snapshots, recipient email-version rechecks and five attempts with 1/5/15/60-minute retry delays. Separate order/queue writes retain an enqueue gap; SMTP acceptance/acknowledgement can also produce recovery duplicates. See [ORDER_EMAILS.md](ORDER_EMAILS.md) for policy, operational requirements and limits.
+
+Validation: 282 offline tests and eight isolated real-MongoDB order-mail cases pass; 22 older MongoDB cases remain unexecuted. Both TypeScript checks and both app builds pass. The isolated test database was cleaned up, all mail was captured, and no application-data migration or real SMTP sending occurred. Production batch startup now explicitly selects NODE_ENV=production.
+
 ## Persistent notifications implemented — 2026-10-17
 
 Added recipient-scoped GraphQL inbox operations over the existing `notifications` collection. Existing `WAIT` / `READ` status values remain; the schema now supports optional system authors, order/event refs, server-generated unique deduplication keys and recipient/status/date indexes. `NotificationModule`, service, resolver and DTOs are wired into the API. Queries and updates always derive the recipient from AuthMember; no client notification-create mutation exists.
