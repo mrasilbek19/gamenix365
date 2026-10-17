@@ -31,6 +31,9 @@ export class AuthService {
         delete payload.emailVerificationRequestedAt;
         delete payload.emailVerificationWindowStart;
         delete payload.emailVerificationRequests;
+        delete payload.passwordResetRequestedAt;
+        delete payload.passwordResetWindowStart;
+        delete payload.passwordResetRequests;
         return await this.jwtService.signAsync(payload);
     }
 

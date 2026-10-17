@@ -40,6 +40,9 @@ export class Member {
     emailVerificationRequestedAt?: Date;
     emailVerificationWindowStart?: Date;
     emailVerificationRequests?: number;
+    passwordResetRequestedAt?: Date;
+    passwordResetWindowStart?: Date;
+    passwordResetRequests?: number;
 
     @Field(() => String, { nullable: true })
     memberFullName?: string;

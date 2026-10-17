@@ -73,6 +73,9 @@ const MemberSchema = new Schema({
     emailVerificationRequestedAt: { type: Date, select: false },
     emailVerificationWindowStart: { type: Date, select: false },
     emailVerificationRequests: { type: Number, min: 0, select: false },
+    passwordResetRequestedAt: { type: Date, select: false },
+    passwordResetWindowStart: { type: Date, select: false },
+    passwordResetRequests: { type: Number, min: 0, select: false },
 
     memberPassword: {
         type: String,

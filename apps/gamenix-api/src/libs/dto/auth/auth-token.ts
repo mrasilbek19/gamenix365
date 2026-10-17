@@ -8,6 +8,9 @@ export interface AuthToken {
     emailSnapshot: string;
     emailVersion: number;
     tokenHash: string;
+    codeHash?: string;
+    passwordSnapshot?: string;
+    attempts?: number;
     expiresAt: Date;
     consumedAt: Date | null;
 }

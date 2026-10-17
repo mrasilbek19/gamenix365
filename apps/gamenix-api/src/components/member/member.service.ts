@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Optional } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, InternalServerErrorException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Member, Members } from '../../libs/dto/member/member';
-import { AgentsInquiry, LoginInput, MemberInput, MembersInquiry } from '../../libs/dto/member/member.input';
+import { AgentsInquiry, LoginInput, MemberInput, MembersInquiry, PasswordResetInput, PasswordResetRequestInput, PasswordResetVerifyInput } from '../../libs/dto/member/member.input';
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { AuthService } from '../auth/auth.service';
@@ -16,17 +16,33 @@ import { LikeInput } from '../../libs/dto/like/like.input';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
 import { lookupAuthMemberLiked } from '../../libs/config';
-import { isEmail } from 'class-validator';
+import { isEmail, length } from 'class-validator';
 import { NotificationService } from '../notification/notification.service';
+import { MailService } from '../mail/mail.service';
+import { AuthToken } from '../../libs/dto/auth/auth-token';
+import { AuthTokenPurpose } from '../../libs/enums/auth-token.enum';
+import { createHash, randomBytes, randomInt } from 'crypto';
+
+const RESET_CODE_TTL_MINUTES = 3;
+const RESET_SESSION_TTL_MINUTES = 10;
+const MAX_RESET_ATTEMPTS = 5;
+const resetMember = { deletedAt: null, memberEmailVerified: true, $or: [
+    { memberStatus: MemberStatus.ACTIVE },
+    { memberStatus: MemberStatus.PENDING, memberType: MemberType.SHOP },
+] };
 
 @Injectable()
 export class MemberService {
+    private readonly passwordResetIpLimits = new Map<string, { count: number; expiresAt: number }>();
+
     constructor(
         @InjectModel("Member") private readonly memberModel: Model<Member>,
         @InjectModel("Follow") private readonly followModel: Model<Follower | Following>,
         private authService: AuthService,
         private viewService: ViewService,
         private likeService: LikeService,
+        @InjectModel('AuthToken') private readonly tokenModel: Model<AuthToken>,
+        private readonly mailService: MailService,
         @Optional() private readonly notificationService?: NotificationService,
     ) { }
 
@@ -80,6 +96,129 @@ export class MemberService {
         response.accessToken = await this.authService.createToken(response)
 
         return response;
+    }
+
+    /** Petora's recovery flow, using Gamenix usernames, verified optional email and existing authTokens. */
+    public async requestPasswordReset(input: PasswordResetRequestInput, ip?: string): Promise<boolean> {
+        this.checkPasswordResetIp('request', ip, 20);
+        const memberEmail = typeof input.memberEmail === 'string' ? input.memberEmail.trim().toLowerCase() : '';
+        if (!length(input.memberNick, 3, 12) || !isEmail(memberEmail)) throw new BadRequestException(Message.BAD_REQUEST);
+        const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+        const codeHash = await this.authService.hashPassword(code);
+        const tokenHash = this.hashResetToken(randomBytes(32).toString('hex'));
+        const session = await this.memberModel.db.startSession();
+        let recipient: { email: string; memberNick: string };
+        try {
+            await session.withTransaction(async () => {
+                recipient = undefined;
+                const now = new Date();
+                const member = await this.memberModel.findOne({ memberNick: input.memberNick, memberEmail, ...resetMember })
+                    .select('+memberEmail +memberEmailVersion +memberPassword +passwordResetRequestedAt +passwordResetWindowStart +passwordResetRequests')
+                    .session(session).lean().exec();
+                if (!member?.memberPassword) return;
+                if (member.passwordResetRequestedAt && now.getTime() - member.passwordResetRequestedAt.getTime() < 60000) return;
+                const sameWindow = member.passwordResetWindowStart && now.getTime() - member.passwordResetWindowStart.getTime() < 3600000;
+                const requests = sameWindow ? member.passwordResetRequests ?? 0 : 0;
+                if (requests >= 5) return;
+                // Serializes resends with one another and with email/password changes.
+                await this.memberModel.updateOne({ _id: member._id }, { $set: {
+                    passwordResetRequestedAt: now, passwordResetWindowStart: sameWindow ? member.passwordResetWindowStart : now,
+                    passwordResetRequests: requests + 1,
+                } }, { session }).exec();
+                await this.tokenModel.updateMany({ memberId: member._id,
+                    purpose: { $in: [AuthTokenPurpose.PASSWORD_RESET_CODE, AuthTokenPurpose.PASSWORD_RESET] }, consumedAt: null,
+                }, { $set: { consumedAt: now } }, { session }).exec();
+                await this.tokenModel.create([{
+                    memberId: member._id, purpose: AuthTokenPurpose.PASSWORD_RESET_CODE, tokenHash, codeHash,
+                    emailSnapshot: member.memberEmail, emailVersion: member.memberEmailVersion ?? 0,
+                    passwordSnapshot: this.hashResetToken(member.memberPassword), expiresAt: new Date(now.getTime() + RESET_CODE_TTL_MINUTES * 60000),
+                }], { session });
+                recipient = { email: member.memberEmail, memberNick: member.memberNick };
+            }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+        } finally { await session.endSession(); }
+        if (recipient) {
+            try { await this.mailService.sendPasswordResetCode(recipient.email, recipient.memberNick, code, RESET_CODE_TTL_MINUTES); }
+            catch {
+                await this.tokenModel.updateOne({ tokenHash }, { $set: { consumedAt: new Date() } }).exec().catch(() => undefined);
+                // The public response must not reveal whether this username/email exists or delivery failed.
+            }
+        }
+        return true;
+    }
+
+    public async verifyPasswordResetCode(input: PasswordResetVerifyInput, ip?: string): Promise<string> {
+        this.checkPasswordResetIp('verify', ip, 60);
+        if (!length(input.memberNick, 3, 12) || typeof input.code !== 'string' || !/^\d{6}$/.test(input.code)) {
+            throw new BadRequestException('Invalid or expired reset code');
+        }
+        const member = await this.memberModel.findOne({ memberNick: input.memberNick, ...resetMember })
+            .select('+memberEmail +memberEmailVersion +memberPassword').lean().exec();
+        if (!member?.memberPassword) throw new BadRequestException('Invalid or expired reset code');
+        // Count each attempt atomically BEFORE bcrypt, so concurrent guesses cannot bypass the limit.
+        const reset = await this.tokenModel.findOneAndUpdate({
+            memberId: member._id, purpose: AuthTokenPurpose.PASSWORD_RESET_CODE,
+            emailSnapshot: member.memberEmail, emailVersion: member.memberEmailVersion ?? 0, passwordSnapshot: this.hashResetToken(member.memberPassword),
+            consumedAt: null, expiresAt: { $gt: new Date() }, attempts: { $lt: MAX_RESET_ATTEMPTS },
+        }, { $inc: { attempts: 1 } }, { new: true }).select('+codeHash').lean().exec();
+        if (!reset?.codeHash || !await this.authService.comparePassword(input.code, reset.codeHash)) {
+            throw new BadRequestException('Invalid or expired reset code');
+        }
+        const resetToken = randomBytes(32).toString('hex');
+        const result = await this.tokenModel.updateOne({ _id: reset._id, purpose: AuthTokenPurpose.PASSWORD_RESET_CODE,
+            consumedAt: null, expiresAt: { $gt: new Date() },
+        }, { $set: { purpose: AuthTokenPurpose.PASSWORD_RESET, tokenHash: this.hashResetToken(resetToken),
+            expiresAt: new Date(Date.now() + RESET_SESSION_TTL_MINUTES * 60000),
+        }, $unset: { codeHash: 1 } }).exec();
+        if (!result.modifiedCount) throw new BadRequestException('Invalid or expired reset code');
+        return resetToken;
+    }
+
+    public async resetPassword(input: PasswordResetInput, ip?: string): Promise<boolean> {
+        this.checkPasswordResetIp('reset', ip, 60);
+        if (typeof input.resetToken !== 'string' || !/^[a-f0-9]{64}$/.test(input.resetToken) ||
+            !length(input.memberPassword, 5, 12) || !input.memberPassword.trim()) throw new BadRequestException(Message.BAD_REQUEST);
+        const memberPassword = await this.authService.hashPassword(input.memberPassword);
+        const session = await this.memberModel.db.startSession();
+        try {
+            await session.withTransaction(async () => {
+                const now = new Date();
+                const reset = await this.tokenModel.findOneAndUpdate({
+                    tokenHash: this.hashResetToken(input.resetToken), purpose: AuthTokenPurpose.PASSWORD_RESET,
+                    consumedAt: null, expiresAt: { $gt: now },
+                }, { $set: { consumedAt: now } }, { new: true, session }).select('+passwordSnapshot').lean().exec();
+                if (!reset?.passwordSnapshot) throw new BadRequestException('Invalid or expired reset session');
+                const search = { _id: reset.memberId, ...resetMember, memberEmail: reset.emailSnapshot,
+                    $expr: { $eq: [{ $ifNull: ['$memberEmailVersion', 0] }, reset.emailVersion] },
+                };
+                const current = await this.memberModel.findOne(search).select('+memberPassword').session(session).lean().exec();
+                if (!current?.memberPassword || this.hashResetToken(current.memberPassword) !== reset.passwordSnapshot) {
+                    throw new BadRequestException('Invalid or expired reset session');
+                }
+                const member = await this.memberModel.updateOne({ ...search, memberPassword: current.memberPassword },
+                    { $set: { memberPassword } }, { session }).exec();
+                if (!member.matchedCount) throw new BadRequestException('Invalid or expired reset session');
+                await this.tokenModel.updateMany({ memberId: reset.memberId,
+                    purpose: { $in: [AuthTokenPurpose.PASSWORD_RESET_CODE, AuthTokenPurpose.PASSWORD_RESET] }, consumedAt: null,
+                }, { $set: { consumedAt: now } }, { session }).exec();
+            }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+        } finally { await session.endSession(); }
+        return true;
+    }
+
+    private hashResetToken(resetToken: string): string {
+        return createHash('sha256').update(resetToken).digest('hex');
+    }
+
+    private checkPasswordResetIp(operation: string, ip: string, maximum: number): void {
+        const now = Date.now();
+        for (const [key, value] of this.passwordResetIpLimits) if (value.expiresAt <= now) this.passwordResetIpLimits.delete(key);
+        const key = `${operation}:${this.hashResetToken(ip || 'unknown')}`;
+        const current = this.passwordResetIpLimits.get(key) ?? { count: 0, expiresAt: now + 15 * 60000 };
+        if (current.count >= maximum || (!this.passwordResetIpLimits.has(key) && this.passwordResetIpLimits.size >= 10000)) {
+            throw new HttpException('Too many password reset attempts; try again later', HttpStatus.TOO_MANY_REQUESTS);
+        }
+        current.count++;
+        this.passwordResetIpLimits.set(key, current);
     }
 
     public async updateMember(

@@ -92,7 +92,7 @@ describe('Member email service behavior', () => {
         };
         auth = { hashPassword: jest.fn(async () => 'hash'), createToken: jest.fn(async () => 'token'),
             comparePassword: jest.fn(async () => true) };
-        service = new MemberService(members, {} as any, auth, {} as any, {} as any);
+        service = new MemberService(members, {} as any, auth, {} as any, {} as any, {} as any, {} as any);
     });
 
     it.each([MemberType.USER, MemberType.SHOP])('keeps optional-email %s signup and shop approval behavior', async (memberType) => {

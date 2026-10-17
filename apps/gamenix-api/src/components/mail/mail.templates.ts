@@ -14,6 +14,16 @@ export const emailVerificationMessage = (name: string, link: string) => ({
     text: `Hello ${name},\n\nVerify your Gamenix365 email address:\n${link}\n\nThis link expires in 15 minutes and can be used once. If you did not request it, ignore this email.`,
 });
 
+// Adapted from Petora's passwordResetHtml; use the existing Gamenix mail format and escaping.
+export const passwordResetMessage = (memberNick: string, code: string, minutes: number) => ({
+    subject: 'Gamenix365 — Password reset code',
+    html: `<p>Hello ${escapeHtml(memberNick)},</p><p>Enter this verification code to reset your Gamenix365 password:</p>
+<p style="font-size:32px;font-weight:bold;letter-spacing:8px">${escapeHtml(code)}</p>
+<p>This code expires in ${minutes} minutes. Never share it with anyone.</p>
+<p>If you did not request this, ignore this email. Your password has not changed.</p>`,
+    text: `Hello ${memberNick},\n\nYour password reset code is: ${code}\n\nThis code expires in ${minutes} minutes. Never share it with anyone.\nIf you did not request this, ignore this email. Your password has not changed.`,
+});
+
 const usd = (value: number): string => `$${value.toFixed(2)}`;
 const statusLabel: Record<OrderStatus, string> = {
     [OrderStatus.PAUSE]: 'Received (PAUSE)',

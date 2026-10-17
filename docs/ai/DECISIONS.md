@@ -1,5 +1,9 @@
 # Architectural decisions
 
+## Copy-and-adapt scope; password recovery — 2026-10-17
+
+Follow the user's simplify request: copy only missing Petora functionality into existing resolver/service/model files and retain working Gamenix features. Password recovery uses Petora's three operations with memberNick, Gamenix password limits and verified optional email, reusing authTokens/MailService/transactions. No new service, worker, module, collection or dependency. Pending SHOP recovery preserves approval state. Account/code limits, atomic consumption and email/password snapshot binding close the copied flow's direct security gaps. Preserve existing JWT/session policy; global session invalidation or OAuth/account linking needs separate approval. Existing payments stay disabled pending an actual compatible sandbox; do not add another provider layer or fabricate payment confirmation mail.
+
 ## Conditional sandbox integration; provider-independent fallback — 2026-10-17
 
 - The new request conditionally approves PortOne V2 hosted checkout, PayPal sandbox, USD and one central Gamenix test merchant. Preserve each order's SHOP and all stock/points/fulfillment rules. Actual account/channel/TEST profile/USD cross-border compatibility is a prerequisite to a real adapter. No compatible account/configuration was available, so execute the explicitly authorized provider-independent fallback. No SDK, alternate provider or runtime simulator; default checkout/webhook/worker execution fails closed even if a flag is set.

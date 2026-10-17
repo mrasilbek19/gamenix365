@@ -1,5 +1,9 @@
 # Next steps
 
+## Petora password recovery copied; existing features retained — 2026-10-17
+
+Forgot/reset password is now implemented in the existing Member resolver/service and MailService using authTokens. Do not recreate it. See the newest COMPLETED_TASKS entry for the three GraphQL operations, limits, verified-email requirement and executed tests. Frontend integration and real SMTP mailbox delivery were not performed. Existing JWT/session behavior remains unchanged. No notification/payment/order/event/community rewrite was made; payment checkout and payment-confirmation emails still require the actual compatible sandbox account/channel/profile and trusted provider verification. Earlier notes describing password recovery as unimplemented are historical.
+
 ## Actual provider verification required after generic workflow — 2026-10-17
 
 The latest conditional approval selects PortOne V2 hosted checkout + PayPal sandbox + USD + one central test merchant. Generic backend and guarded frontend workflow are implemented, but the actual account/channel/TEST profile was unavailable. Default checkout remains disabled; flags alone cannot activate it. Do not repeat the settled USD/merchant/inventory decisions, install an SDK blindly, substitute another provider or begin Phase 7.

@@ -50,7 +50,7 @@ describe('Member password updates', () => {
         };
         auth = new AuthService(new JwtService({ secret: 'member-password-test-secret' }));
         hashPassword = jest.spyOn(auth, 'hashPassword');
-        service = new MemberService(members, {} as any, auth, {} as any, {} as any);
+        service = new MemberService(members, {} as any, auth, {} as any, {} as any, {} as any, {} as any);
     });
 
     it.each([MemberType.USER, MemberType.SHOP])('keeps bcrypt signup and username login working for %s', async (memberType) => {

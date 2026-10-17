@@ -24,7 +24,7 @@ describeMongo('Member email MongoDB integration', () => {
         await members.init();
         service = new MemberService(members, {} as any, {
             hashPassword: async () => 'test-hash', createToken: async () => 'test-token',
-        } as any, {} as any, {} as any);
+        } as any, {} as any, {} as any, {} as any, {} as any);
     }, 15000);
 
     beforeEach(async () => { await members.deleteMany({}).exec(); });

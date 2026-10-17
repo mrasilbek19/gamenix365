@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, ServiceUnavailableException } from
 import { ConfigService } from '@nestjs/config';
 import { isEmail } from 'class-validator';
 import * as nodemailer from 'nodemailer';
-import { emailVerificationMessage, orderEmailMessage } from './mail.templates';
+import { emailVerificationMessage, orderEmailMessage, passwordResetMessage } from './mail.templates';
 import { OrderEmailSnapshot } from '../../libs/dto/mail/email-delivery';
 import { EmailDeliveryTemplate } from '../../libs/enums/email-delivery.enum';
 
@@ -69,6 +69,10 @@ export class MailService implements OnModuleDestroy {
 
     public async sendEmailVerification(to: string, name: string, link: string): Promise<void> {
         await this.sendMail({ to, ...emailVerificationMessage(name, link) });
+    }
+
+    public async sendPasswordResetCode(to: string, memberNick: string, code: string, minutes: number): Promise<void> {
+        await this.sendMail({ to, ...passwordResetMessage(memberNick, code, minutes) });
     }
 
     public async sendOrderEmail(to: string, template: EmailDeliveryTemplate, order: OrderEmailSnapshot, deliveryId: string): Promise<void> {

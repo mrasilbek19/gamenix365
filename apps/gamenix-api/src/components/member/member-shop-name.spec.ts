@@ -104,7 +104,7 @@ describe('Member shop name service boundaries', () => {
             aggregate: jest.fn(() => query([{ list: [], metaCounter: [] }])),
         };
         auth = { hashPassword: jest.fn(async () => 'hash'), createToken: jest.fn(async () => 'token') };
-        service = new MemberService(members, {} as any, auth, {} as any, {} as any);
+        service = new MemberService(members, {} as any, auth, {} as any, {} as any, {} as any, {} as any);
     });
 
     it('creates a pending SHOP with separate normalized public name and hashed login credentials', async () => {
@@ -248,7 +248,7 @@ describe('Member shop name GraphQL signup, login and authorization', () => {
                 return { ...record };
             } })),
         };
-        const service = new MemberService(members, {} as any, auth, {} as any, {} as any);
+        const service = new MemberService(members, {} as any, auth, {} as any, {} as any, {} as any, {} as any);
         const module = await Test.createTestingModule({
             imports: [GraphQLModule.forRoot({ driver: ApolloDriver, autoSchemaFile: true })],
             providers: [MemberResolver, { provide: MemberService, useValue: service }, { provide: AuthService, useValue: auth }],

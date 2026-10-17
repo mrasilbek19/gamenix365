@@ -7,6 +7,9 @@ const AuthTokenSchema = new Schema({
     emailSnapshot: { type: String, required: true, trim: true, lowercase: true },
     emailVersion: { type: Number, required: true, min: 0 },
     tokenHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+    codeHash: { type: String, select: false },
+    passwordSnapshot: { type: String, match: /^[a-f0-9]{64}$/, select: false },
+    attempts: { type: Number, min: 0, default: 0, validate: Number.isSafeInteger },
     expiresAt: { type: Date, required: true },
     consumedAt: { type: Date, default: null },
 }, { timestamps: true, collection: 'authTokens' });

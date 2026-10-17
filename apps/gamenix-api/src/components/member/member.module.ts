@@ -8,15 +8,19 @@ import { ViewModule } from '../view/view.module';
 import { LikeModule } from '../like/like.module';
 import FollowSchema from '../../schemas/Follow.model';
 import { NotificationModule } from '../notification/notification.module';
+import AuthTokenSchema from '../../schemas/AuthToken.model';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: "Member", schema: MemberSchema }]),
     MongooseModule.forFeature([{ name: 'Follow', schema: FollowSchema }]),
+    MongooseModule.forFeature([{ name: 'AuthToken', schema: AuthTokenSchema }]),
     AuthModule,
     ViewModule,
     LikeModule,
     NotificationModule,
+    MailModule,
   ],
   providers: [MemberResolver, MemberService],
   exports: [MemberService],

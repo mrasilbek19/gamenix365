@@ -1,5 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, Min, ValidateIf } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, Matches, Min, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { MemberAuthType, MemberStatus, MemberType } from '../../enums/member.enum';
 import { availableAgentSorts, availableMemberSorts } from '../../config';
@@ -57,6 +57,42 @@ export class LoginInput {
 
     @IsNotEmpty()
     @Length(5, 12)
+    @Field(() => String)
+    memberPassword: string;
+}
+
+@InputType()
+export class PasswordResetRequestInput {
+    @Length(3, 12)
+    @Field(() => String)
+    memberNick: string;
+
+    @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+    @IsEmail()
+    @Length(1, 254)
+    @Field(() => String)
+    memberEmail: string;
+}
+
+@InputType()
+export class PasswordResetVerifyInput {
+    @Length(3, 12)
+    @Field(() => String)
+    memberNick: string;
+
+    @Matches(/^\d{6}$/)
+    @Field(() => String)
+    code: string;
+}
+
+@InputType()
+export class PasswordResetInput {
+    @Matches(/^[a-f0-9]{64}$/)
+    @Field(() => String)
+    resetToken: string;
+
+    @Length(5, 12)
+    @Matches(/\S/)
     @Field(() => String)
     memberPassword: string;
 }

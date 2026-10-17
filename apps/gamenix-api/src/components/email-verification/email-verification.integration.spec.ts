@@ -50,7 +50,7 @@ describeMongo('Email verification MongoDB transactions', () => {
         ownerId = owner._id as any;
         mail = new MailService(config);
         service = new EmailVerificationService(members, tokens, connection, mail, config);
-        memberService = new MemberService(members, {} as any, auth, {} as any, {} as any);
+        memberService = new MemberService(members, {} as any, auth, {} as any, {} as any, tokens, mail);
         await service.onModuleInit();
     });
 
