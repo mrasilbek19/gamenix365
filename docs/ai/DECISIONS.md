@@ -1,5 +1,13 @@
 # Architectural decisions
 
+## Sandbox payment foundation and remaining gate — 2026-10-17
+
+- The user approved South Korea, unchanged inventory timing, separate payment records and manual sandbox reconciliation. Their later “or just keep $ as it is” retains USD catalog/shipping/email amounts; no native KRW migration or FX policy is authorized now. A future provider must support USD for the actual South Korean merchant/payment method. No test account exists, so provider/PG/channel/merchant compatibility is still unresolved.
+- Implement independent records and an authenticated local status query under that approval. Stop before checkout, provider SDK installation/calls and webhook handling until compatibility and the actual zero-real-money test channel/merchant arrangement are confirmed. Do not select PortOne merely from the reference.
+- Separate PaymentStatus from OrderStatus and reconciliation status from payment outcome. Store explicit currency/integer minor units, immutable ownership/source snapshots, provider/environment/merchant metadata, request fingerprints/keys, timestamps and sanitized failure/reconciliation details. Only SANDBOX is representable. Preserve current USD source amounts in cents; a USD payment must match its source total. KRW is a representable currency, not an enabled conversion flow.
+- Keep provider/event ledgers private, use partial unique provider-payment identity plus unique member/idempotency and provider-event identities, and expose only an owner-filtered public status projection. No create/update mutation. Indexes alone do not supply verification, lifecycle or exactly-once handling.
+- No payment event changes orders, stock or points. Keep current order writes, single-shop rules, database prices and processing transitions. Do not silently compensate partial stock writes, auto-refund, convert timeouts into a trusted failure or copy Petora's catch-all cancellation. Actual provider verification, cancellation and reconciliation logic remain gated work. See PAYMENT_READINESS and SANDBOX_PAYMENTS.
+
 ## Durable order email delivery — 2026-10-17
 
 - Reuse Phase 2 MailService, its SMTP/capture policy and escaped templates. Confirmation and status mail use the storefront's `$0.00` USD format. PAUSE/PROCESS/FINISHED are processing states; no template claims payment, shipment or delivery and no payment/card fields are persisted.

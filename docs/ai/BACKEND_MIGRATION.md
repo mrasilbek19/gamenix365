@@ -1,5 +1,11 @@
 # Backend migration: Nestar → Gamenix
 
+## Sandbox payment record foundation; checkout blocked — 2026-10-17
+
+After the readiness audit and user approval, added independent Payment/PaymentEvent persistence, sandbox-only environment values, explicit currency/integer amounts, immutable owner/order/shop and USD source snapshots, provider/idempotency/event identities, separate reconciliation metadata and an authenticated owner-only getPaymentStatus query. No payment creation/update API or provider execution exists. Current catalog/shipping/emails stay USD per the user's latest instruction; no currency migration, order business-rule change, stock/point effect or credential change occurred.
+
+The user has no sandbox account/channel. Provider/PG USD compatibility for the South Korean merchant and platform-versus-shop merchant arrangement must be confirmed before checkout/SDK/webhooks. Payment verification, cancellation/timeout/reconciliation workers and provider scenario tests remain unimplemented. This is a partial Phase 6 foundation, not a working payment checkout. See [PAYMENT_READINESS.md](PAYMENT_READINESS.md), [SANDBOX_PAYMENTS.md](SANDBOX_PAYMENTS.md) and the completion ledger for validation and production blockers.
+
 ## Order confirmation/status email delivery implemented — 2026-10-17
 
 Phase 5 adds private durable `emailDeliveries` records, confirmation/status HTML and text templates, and a gamenix-batch worker using the existing MailService. Successful OrderService creation and PROCESS/FINISHED operations enqueue the authenticated buyer's current verified email; optional/missing/unverified email never fails checkout. SMTP runs only in batch. Templates use stored order/item data, USD formatting and pickup/delivery details; processing states do not claim payment. Existing order writes, stock, points and transitions are unchanged.

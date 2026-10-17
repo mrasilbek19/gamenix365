@@ -1,5 +1,11 @@
 # Next steps
 
+## Phase 6 foundation complete; checkout blocked — 2026-10-17
+
+See the pre-checkout [PAYMENT_READINESS.md](PAYMENT_READINESS.md) and implemented [SANDBOX_PAYMENTS.md](SANDBOX_PAYMENTS.md). South Korea, unchanged inventory timing, separate payment records and manual sandbox reconciliation are approved. The user confirmed no test account exists; their latest currency instruction, “or just keep $ as it is”, preserves USD prices/shipping/emails and supersedes the earlier KRW pricing proposal. No FX, repricing or order business-rule changes were made. Do not repeat those decisions or choose a provider from the Petora reference automatically.
+
+Payment/PaymentEvent models, private DTOs/enums, unique identity indexes and authenticated owner-only getPaymentStatus are implemented. There is no payment writer or provider integration. Before implementing checkout/SDK/webhooks, confirm a compatible USD sandbox provider/PG for the South Korean merchant, its actual test channel and platform-versus-shop merchant arrangement. No live credentials or real payments. Preserve no reservation at PAUSE, existing PROCESS stock/points timing and separate order writes; payment success must never invoke PROCESS. Production remains blocked by existing partial-order/stock-write consistency, missing cancellation/refund/reconciliation processing and the unimplemented provider security/test suite.
+
 ## Order email backend complete — 2026-10-17
 
 Confirmation and successful PROCESS/FINISHED status events now queue persistent email for the authenticated buyer's verified address. Optional/unverified email skips safely. The existing batch app delivers and retries using Phase 2 MailService. See [ORDER_EMAILS.md](ORDER_EMAILS.md) for templates, record/state/lease policy and failure limits; no frontend contract changes are needed.
