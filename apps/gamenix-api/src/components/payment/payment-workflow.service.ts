@@ -264,7 +264,7 @@ export class PaymentWorkflowService {
             { new: true, sort: { nextCheckAt: 1 } }).select(INTERNAL).lean().exec();
             if (!payment) break;
             try {
-                const facts = await providerDeadline(() => this.provider.getPayment(payment.providerPaymentId));
+                const facts = await providerDeadline(() => this.provider.getPaymentFacts(payment.providerPaymentId));
                 if (!matchingFacts(payment, facts, identity)) {
                     await this.uncertain(payment, leaseToken, 'PROVIDER_FACTS_MISMATCH', true);
                     continue;

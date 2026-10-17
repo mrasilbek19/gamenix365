@@ -86,7 +86,7 @@ export class PortoneService {
     }
     public async verifyWebhook(_body: Buffer, _headers: Record<string, unknown>): Promise<ProviderEvent> { throw new ServiceUnavailableException('Sandbox account is not verified'); }
 
-    public async getPayment(paymentId: string): Promise<ProviderPaymentFacts> {
+    public async getPayment(paymentId: string): Promise<PortonePayment> {
         const apiSecret = this.config.get<string>('PORTONE_V2_API_SECRET');
         const merchantId = this.config.get<string>('PORTONE_MERCHANT_ID');
         const storeId = this.config.get<string>('PORTONE_STORE_ID');
@@ -124,6 +124,36 @@ export class PortoneService {
         catch { throw new BadRequestException('Payment order binding is missing'); }
         if (typeof bindingKey !== 'string' || !/^[a-f0-9]{64}$/.test(bindingKey)) throw new BadRequestException('Invalid payment order binding');
 
+        if (payment.status === 'PAID' && (payment.amount.paid !== payment.amount.total || payment.amount.cancelled !== 0 ||
+            typeof payment.transactionId !== 'string' || !payment.transactionId || payment.transactionId.length > 200 ||
+            typeof payment.paidAt !== 'string' || !Number.isFinite(new Date(payment.paidAt).getTime()))) {
+            throw new BadRequestException('Payment capture evidence is incomplete');
+        }
+        return payment;
+    }
+
+    /** Petora verification flow; expectedAmount is the server-calculated USD total in cents. */
+    public async verifyPaid(paymentId: string, expectedAmount: number): Promise<PortonePayment> {
+        if (!Number.isSafeInteger(expectedAmount) || expectedAmount <= 0) throw new BadRequestException('Invalid expected payment amount');
+        const payment = await this.getPayment(paymentId);
+
+        if (payment.status !== 'PAID') {
+            throw new BadRequestException(`Payment is not completed (status: ${payment.status})`);
+        }
+        if (payment.currency !== 'USD') {
+            throw new BadRequestException(`Unsupported payment currency: ${payment.currency}`);
+        }
+        if (payment.amount?.total !== expectedAmount) {
+            throw new BadRequestException('Paid amount does not match the order total');
+        }
+
+        return payment;
+    }
+
+    /** Preserve the existing Gamenix record format without exposing raw provider data. */
+    public async getPaymentFacts(paymentId: string): Promise<ProviderPaymentFacts> {
+        const payment = await this.getPayment(paymentId);
+        const bindingKey = JSON.parse(payment.customData).bindingKey;
         let status = PaymentStatus.UNKNOWN;
         switch (payment.status) {
             case 'READY': case 'PENDING': status = PaymentStatus.PENDING; break;
@@ -132,11 +162,6 @@ export class PortoneService {
         }
         const captured = status === PaymentStatus.SUCCEEDED;
         const capturedAt = captured ? new Date(payment.paidAt) : undefined;
-        if (captured && (payment.amount.paid !== payment.amount.total || payment.amount.cancelled !== 0 ||
-            typeof payment.transactionId !== 'string' || !payment.transactionId || payment.transactionId.length > 200 ||
-            typeof payment.paidAt !== 'string' || !Number.isFinite(capturedAt.getTime()))) {
-            throw new BadRequestException('Payment capture evidence is incomplete');
-        }
         // Workflow compares these facts to the persisted immutable order snapshot before any status write.
         return {
             providerPaymentId: payment.id, status, amountMinor: payment.amount.total, currency: payment.currency,

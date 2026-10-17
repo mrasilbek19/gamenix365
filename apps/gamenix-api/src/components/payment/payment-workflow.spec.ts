@@ -106,7 +106,7 @@ describe('Petora PortOne lookup adapted to USD sandbox facts', () => {
 
     it('uses the authenticated REST lookup and returns only allowlisted TEST/USD facts in cents', async () => {
         const { service, get } = make();
-        expect(await service.getPayment(paymentId)).toMatchObject({ providerPaymentId: paymentId,
+        expect(await service.getPaymentFacts(paymentId)).toMatchObject({ providerPaymentId: paymentId,
             status: 'SUCCEEDED', amountMinor: 1050, environment: 'SANDBOX', captured: true, checkoutClosed: false });
         expect(get).toHaveBeenCalledWith(`https://api.portone.io/payments/${paymentId}`,
             expect.objectContaining({ headers: { Authorization: 'PortOne fixture-secret' }, params: { storeId: 'fixture-store' }, maxRedirects: 0 }));
@@ -114,10 +114,41 @@ describe('Petora PortOne lookup adapted to USD sandbox facts', () => {
         expect(await service.verifiedSandbox()).toBeNull();
     });
 
+    it('keeps Petora getPayment and verifyPaid return values and verifies the expected USD cents', async () => {
+        const { service, get } = make();
+        const payment = await service.getPayment(paymentId);
+        expect(payment).toMatchObject({ id: paymentId, status: 'PAID', currency: 'USD', amount: { total: 1050 } });
+        expect(payment).not.toHaveProperty('verifiedSuccess');
+        expect(await service.verifyPaid(paymentId, 1050)).toEqual(payment);
+        expect(get).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects unpaid provider results through Petora verifyPaid', async () => {
+        const { service, get } = make();
+        for (const status of ['READY', 'PENDING', 'FAILED', 'CANCELLED']) {
+            get.mockResolvedValueOnce({ data: { ...data(), status } });
+            await expect(service.verifyPaid(paymentId, 1050)).rejects.toThrow('Payment is not completed');
+        }
+    });
+
+    it('rejects wrong totals, absent/wrong currency and invalid expected amounts', async () => {
+        const { service, get } = make();
+        await expect(service.verifyPaid(paymentId, 1049)).rejects.toThrow('Paid amount does not match');
+        for (const currency of [undefined, 'KRW']) {
+            get.mockResolvedValueOnce({ data: { ...data(), currency } });
+            await expect(service.verifyPaid(paymentId, 1050)).rejects.toThrow('currency mismatch');
+        }
+        get.mockClear();
+        for (const amount of [0, -1, 10.5, NaN, Infinity]) {
+            await expect(service.verifyPaid(paymentId, amount)).rejects.toThrow('Invalid expected payment amount');
+        }
+        expect(get).not.toHaveBeenCalled();
+    });
+
     it.each([{ NODE_ENV: 'production' }, { PORTONE_ENVIRONMENT: 'LIVE' }, { PORTONE_V2_API_SECRET: '' },
         { PORTONE_TEST_CHANNEL_ID: '' }])('rejects unsafe or incomplete lookup configuration %j', async (overrides) => {
         const { service, get } = make(overrides);
-        await expect(service.getPayment(paymentId)).rejects.toThrow('not configured');
+        await expect(service.getPaymentFacts(paymentId)).rejects.toThrow('not configured');
         expect(get).not.toHaveBeenCalled();
     });
 
@@ -130,25 +161,25 @@ describe('Petora PortOne lookup adapted to USD sandbox facts', () => {
     ])('rejects incomplete or conflicting provider facts %j', async (override) => {
         const { service, get } = make();
         get.mockResolvedValueOnce({ data: { ...data(), ...override } });
-        await expect(service.getPayment(paymentId)).rejects.toThrow();
+        await expect(service.getPaymentFacts(paymentId)).rejects.toThrow();
     });
 
     it('keeps cancellation/partial refund and unknown outcomes uncertain rather than reopening checkout', async () => {
         const { service, get } = make();
         for (const status of ['CANCELLED', 'PARTIAL_CANCELLED', 'UNRECOGNIZED']) {
             get.mockResolvedValueOnce({ data: { ...data(), status } });
-            expect(await service.getPayment(paymentId)).toMatchObject({ status: 'UNKNOWN', captured: false, checkoutClosed: false });
+            expect(await service.getPaymentFacts(paymentId)).toMatchObject({ status: 'UNKNOWN', captured: false, checkoutClosed: false });
         }
     });
 
     it('rejects non-server references and sanitizes provider lookup errors', async () => {
         const { service, get } = make();
-        await expect(service.getPayment('browser-provided-id')).rejects.toThrow('Invalid payment reference');
+        await expect(service.getPaymentFacts('browser-provided-id')).rejects.toThrow('Invalid payment reference');
         expect(get).not.toHaveBeenCalled();
         get.mockRejectedValueOnce({ response: { status: 404 } });
-        await expect(service.getPayment(paymentId)).rejects.toThrow('Payment not found');
+        await expect(service.getPaymentFacts(paymentId)).rejects.toThrow('Payment not found');
         get.mockRejectedValueOnce(new Error('Authorization: PortOne fixture-secret'));
-        await expect(service.getPayment(paymentId)).rejects.toThrow('Payment lookup failed');
+        await expect(service.getPaymentFacts(paymentId)).rejects.toThrow('Payment lookup failed');
     });
 });
 

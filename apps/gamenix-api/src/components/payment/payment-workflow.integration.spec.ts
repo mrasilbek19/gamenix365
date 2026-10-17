@@ -59,7 +59,7 @@ describeMongo('Provider-independent payment workflow with isolated MongoDB', () 
             verifiedSandbox: jest.fn(async () => identity),
             createSession: jest.fn(async () => ({ sessionId: 'synthetic-session',
                 url: 'https://checkout.example.test/synthetic-session', expiresAt: new Date(Date.now() + 3600000) })),
-            getPayment: jest.fn(async (id: string) => {
+            getPaymentFacts: jest.fn(async (id: string) => {
                 const payment = await payments.findOne({ providerPaymentId: id }).select(privateFields).lean();
                 return { providerPaymentId: id, status: PaymentStatus.SUCCEEDED, amountMinor: payment.amountMinor,
                     currency: 'USD', merchantId: identity.merchantId, storeId: identity.storeId,
@@ -220,7 +220,7 @@ describeMongo('Provider-independent payment workflow with isolated MongoDB', () 
         await accept({ body, headers: { signature: sign(body) } });
         await service.processDueEvents();
         expect(await events.findOne().lean()).toMatchObject({ state: 'PROCESSED', failureCode: 'NO_LOCAL_PAYMENT' });
-        expect(provider.getPayment).not.toHaveBeenCalled();
+        expect(provider.getPaymentFacts).not.toHaveBeenCalled();
         expect(await payments.countDocuments()).toBe(0);
     });
     it('never downgrades capture when a later/stale failure event arrives', async () => {
@@ -245,10 +245,10 @@ describeMongo('Provider-independent payment workflow with isolated MongoDB', () 
         expect(await status.getPaymentStatus(fixture.memberId, result.paymentId)).toMatchObject({ status: 'SUCCEEDED', verifiedSuccess: true });
     });
     it('bounds provider retries without turning uncertainty into failure/cancellation', async () => {
-        const result = await checkout(); provider.getPayment.mockRejectedValue(new Error('timeout'));
+        const result = await checkout(); provider.getPaymentFacts.mockRejectedValue(new Error('timeout'));
         for (let i = 0; i < 5; i++) { await due(result.paymentId); await service.processDuePayments(); }
         await due(result.paymentId); await service.processDuePayments();
-        expect(provider.getPayment).toHaveBeenCalledTimes(5);
+        expect(provider.getPaymentFacts).toHaveBeenCalledTimes(5);
         expect(await load(result.paymentId)).toMatchObject({ status: 'UNKNOWN', active: true, checkAttempts: 5,
             reconciliationStatus: 'REQUIRED' });
     });
@@ -256,7 +256,7 @@ describeMongo('Provider-independent payment workflow with isolated MongoDB', () 
         const result = await checkout();
         await payments.updateOne({ _id: result.paymentId }, { $set: { lockedUntil: new Date(0), leaseToken: 'crashed', nextCheckAt: new Date(0) } });
         await Promise.all(Array.from({ length: 5 }, () => service.processDuePayments()));
-        expect(provider.getPayment).toHaveBeenCalledTimes(1);
+        expect(provider.getPaymentFacts).toHaveBeenCalledTimes(1);
         expect((await status.getPaymentStatus(fixture.memberId, result.paymentId)).verifiedSuccess).toBe(true);
     });
     it('does not infer expiry from elapsed checkout time while the provider reports pending', async () => {
@@ -268,11 +268,11 @@ describeMongo('Provider-independent payment workflow with isolated MongoDB', () 
     });
     it('preserves a newer signed-event schedule when an older retrieval finishes', async () => {
         const result = await checkout(); await due(result.paymentId);
-        const original = provider.getPayment.getMockImplementation();
+        const original = provider.getPaymentFacts.getMockImplementation();
         let release: () => void;
         let started: () => void;
         const ready = new Promise<void>((resolve) => { started = resolve; });
-        provider.getPayment.mockImplementationOnce(async (id: string) => {
+        provider.getPaymentFacts.mockImplementationOnce(async (id: string) => {
             const facts = { ...await original(id), status: PaymentStatus.PENDING, captured: false, checkoutClosed: false };
             started(); await new Promise<void>((resolve) => { release = resolve; });
             return facts;
@@ -283,14 +283,14 @@ describeMongo('Provider-independent payment workflow with isolated MongoDB', () 
         // No forced due date: the newer event must remain scheduled despite the older pending result.
         await service.processDuePayments();
         expect(await status.getPaymentStatus(fixture.memberId, result.paymentId)).toMatchObject({ status: 'SUCCEEDED', verifiedSuccess: true });
-        expect(provider.getPayment).toHaveBeenCalledTimes(2);
+        expect(provider.getPaymentFacts).toHaveBeenCalledTimes(2);
     });
     it('moves a final-attempt crashed claim to manual review', async () => {
         const result = await checkout();
         await payments.updateOne({ _id: result.paymentId }, { $set: { checkAttempts: 5, lockedUntil: new Date(0), leaseToken: 'crashed' } });
         await service.processDuePayments();
         expect(await load(result.paymentId)).toMatchObject({ status: 'UNKNOWN', reconciliationStatus: 'REQUIRED', nextCheckAt: null });
-        expect(provider.getPayment).not.toHaveBeenCalled();
+        expect(provider.getPaymentFacts).not.toHaveBeenCalled();
     });
     it('bounds failed event scheduling and recovers an event worker crash', async () => {
         const result = await checkout(); await accept(await webhook(result.paymentId));

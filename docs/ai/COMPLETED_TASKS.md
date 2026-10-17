@@ -1,5 +1,11 @@
 # Completed tasks and evidence ledger
 
+## Direct Petora payment verification methods copied — 2026-10-17
+
+Copied Petora's actual verifyPaid(paymentId, expectedAmount) implementation into existing PortoneService. getPayment now returns the provider payment object as Petora does; verifyPaid requires PAID and the exact server-calculated USD integer-cent total. Retained TEST identity, capture, binding and sanitized-error checks. Existing record normalization is named getPaymentFacts and its existing workflow caller/tests were adapted. No new files, module, collection, dependency, checkout operation, order rule or payment-state transition. The compatible-account gate remains unchanged; no real provider call/payment or automatic cancellation/refund.
+
+Validation: 487 tests pass, including all 49 isolated MongoDB payment cases; 52 unrelated opt-in MongoDB cases skipped. Both app TypeScript checks and Nest builds pass under Node 20.19.0. Extended the existing test file for the copied raw response/verifyPaid contract, unpaid results, mismatched totals/currency and invalid expected amounts. Synthetic provider responses only; diff reviewed and relevant files staged in one focused commit.
+
 ## Petora PortOne client adaptation and final validation — 2026-10-17
 
 Adapted Petora's PortoneService authenticated V2 REST lookup using the existing Nest HttpModule (no dependency/SDK added). Lookup requires nonproduction SANDBOX configuration, a server-generated gamenix-test ID, exact merchant/store/TEST-channel/PG pins, V2/USD positive integer cents, server fingerprint binding and complete capture evidence. Workflow still compares facts with the persisted snapshot. Redirects are disabled and provider errors never expose credentials. Cancelled/partially cancelled/unknown facts stay uncertain; failed attempts do not prove permanent nonchargeability. No Petora booking, KRW fees, automatic payment cancellation or order effects were copied.
