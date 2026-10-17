@@ -4,9 +4,9 @@ Date: 2026-10-17. **Provider-independent implementation only. Actual checkout is
 
 ## Account gate and runtime configuration
 
-The user conditionally approved PortOne V2 hosted checkout, PayPal sandbox, USD, and one central Gamenix test merchant. No actual merchant/store/PayPal TEST channel/checkout TEST profile or credentials were available to verify. No SDK was installed and there is no PortOne adapter or runtime simulator. The default UnconfiguredPaymentProvider always returns no verified sandbox and rejects provider methods. Setting PAYMENTS_ENABLED=true cannot enable it. NODE_ENV=production is also rejected.
+The user conditionally approved PortOne V2 hosted checkout, PayPal sandbox, USD, and one central Gamenix test merchant. No actual merchant/store/PayPal TEST channel/checkout TEST profile or credentials were available to verify. The Petora copy/adapt task added concrete PortoneService with an authenticated, pinned TEST/USD REST lookup, replacing the generic provider token/default. No SDK or runtime simulator was added. verifiedSandbox still returns null; hosted sessions and signature verification remain unavailable. The shared PaymentModule replaces PaymentCoreModule; API resolver/webhook registration stays in ComponentsModule so batch exposes no payment routes. Setting PAYMENTS_ENABLED=true cannot enable it. NODE_ENV=production is also rejected.
 
-The generic orchestration can run only with an account-verified server adapter AND PAYMENTS_ENABLED=true AND a nonproduction environment. Synthetic tests inject a separate fake provider; that is not account compatibility or a provider sandbox transaction. No environment files, credentials, order status names or payment status names changed.
+The preserved orchestration can run only after PortoneService establishes a verified sandbox identity AND PAYMENTS_ENABLED=true AND a nonproduction environment. Synthetic tests inject a separate fake provider; that is not account compatibility or a provider sandbox transaction. No environment files, credentials, order status names or payment status names changed.
 
 ## Persistence and checkout creation
 

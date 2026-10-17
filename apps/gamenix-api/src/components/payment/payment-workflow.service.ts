@@ -1,5 +1,5 @@
 import {
-    BadRequestException, ConflictException, Inject, Injectable,
+    BadRequestException, ConflictException, Injectable,
     ServiceUnavailableException, UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,7 +10,7 @@ import { TestCheckoutInput } from '../../libs/dto/payment/checkout-session.input
 import { TestCheckoutAvailability, TestCheckoutSession } from '../../libs/dto/payment/checkout-session';
 import { PaymentEventRecord, PaymentRecord } from '../../libs/dto/payment/payment-record';
 import { PaymentCurrency, PaymentEnvironment, PaymentEventState, PaymentReconciliationStatus, PaymentStatus } from '../../libs/enums/payment.enum';
-import { PAYMENT_CHECK_LIMIT, PAYMENT_LEASE_MS, PAYMENT_PROVIDER, PaymentProvider, SandboxIdentity, providerDeadline } from './payment-provider';
+import { PAYMENT_CHECK_LIMIT, PAYMENT_LEASE_MS, PortoneService, SandboxIdentity, providerDeadline } from './portone.service';
 import { PaymentSnapshotService } from './payment-snapshot.service';
 import { matchingFacts } from './payment-verification';
 
@@ -27,7 +27,7 @@ export class PaymentWorkflowService {
         @InjectModel('Payment') private readonly payments: Model<PaymentRecord>,
         @InjectModel('PaymentEvent') private readonly events: Model<PaymentEventRecord>,
         private readonly snapshots: PaymentSnapshotService,
-        @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+        private readonly provider: PortoneService,
         private readonly config: ConfigService,
     ) {}
 

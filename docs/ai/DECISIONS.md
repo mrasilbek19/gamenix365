@@ -1,5 +1,7 @@
 # Architectural decisions
 
+- 2026-10-17 copy/adapt request: reuse Petora's PRODUCT/SHOP review module and recipient-only notification delivery; retain existing reusable MailService and marketplace/auth rules. Replace the payment provider token/default and extra core module with concrete PortoneService/shared PaymentModule, preserving all used verification, snapshot and recovery code. REST lookup is pinned TEST/USD; account/profile and hosted-session/signature integration remain unverified and checkout stays disabled. No SDK, live payment, automatic cancellation/refund, new payment collection or duplicate module.
+
 ## Copy-and-adapt scope; password recovery — 2026-10-17
 
 Follow the user's simplify request: copy only missing Petora functionality into existing resolver/service/model files and retain working Gamenix features. Password recovery uses Petora's three operations with memberNick, Gamenix password limits and verified optional email, reusing authTokens/MailService/transactions. No new service, worker, module, collection or dependency. Pending SHOP recovery preserves approval state. Account/code limits, atomic consumption and email/password snapshot binding close the copied flow's direct security gaps. Preserve existing JWT/session policy; global session invalidation or OAuth/account linking needs separate approval. Existing payments stay disabled pending an actual compatible sandbox; do not add another provider layer or fabricate payment confirmation mail.

@@ -1,10 +1,10 @@
 # Phase 6 payment-readiness decision report
 
-Date: 2026-10-17. Status: **Provider-independent workflow implemented; actual provider checkout remains disabled**.
+Date: 2026-10-17. Status: **Petora PortOne REST lookup adapted; actual provider checkout remains disabled**.
 
 Latest approval conditionally selects PortOne V2 hosted checkout, PayPal sandbox, USD and one central Gamenix test merchant, preserving each order's SHOP. That supersedes the earlier undecided provider/merchant arrangement. Actual account/channel/profile compatibility must still be verified. The user explicitly authorized implementing and testing only provider-independent components if that verification is unavailable. No payment configuration variable names were present in the backend/frontend environment files or process environment at inspection; values were neither displayed nor changed. There is no account evidence to verify.
 
-Implemented the authorized fallback: persisted-order snapshots, exact USD cents, guarded GraphQL checkout orchestration, active-attempt/idempotency indexes, a provider interface with an unconfigured default, verification evidence, a raw-body webhook boundary, event/recovery workers, reporting-only order failure hook and guarded frontend integration. **No PortOne SDK, real provider adapter, network payment call, sandbox transaction, actual provider signature validation, receipt or refund was implemented.** Flags alone cannot activate the default provider. See [SANDBOX_PAYMENTS.md](SANDBOX_PAYMENTS.md) for the current contract. Earlier foundation-only descriptions in the history ledger remain historical.
+The 2026-10-17 copy/adapt request replaces the generic provider token with concrete PortoneService and consolidates shared providers into PaymentModule. Petora’s authenticated GET lookup is adapted to TEST-only pinned merchant/store/channel/PG identity, exact USD integer cents and server binding/capture facts. Existing snapshots, idempotency, owner-only status, signed-event boundary, bounded reconciliation and order-failure reporting remain. Account/profile compatibility is still unverified: verifiedSandbox returns null; checkout and webhook verification remain unavailable regardless of flags. **No SDK, actual provider call/transaction, working checkout/signature integration, receipt or refund was exercised or enabled.** See [SANDBOX_PAYMENTS.md](SANDBOX_PAYMENTS.md) for the current contract. Earlier foundation-only descriptions in the history ledger remain historical.
 
 | Decision | Confirmed current state | Required before checkout implementation |
 |---|---|---|
@@ -32,11 +32,11 @@ Implemented the authorized fallback: persisted-order snapshots, exact USD cents,
 
 The existing collections/status names/query were extended, not recreated. Authenticated getTestCheckoutAvailability reports disabled; createTestCheckoutSession fails closed before any write while the provider is unconfigured. getPaymentStatus remains owner-only and now returns verifiedSuccess, derived from private persisted matching capture evidence. Legacy SUCCEEDED fixtures/dates alone are insufficient. The worker and HTTP endpoint also stay disabled without a verified server adapter.
 
-Before implementing/enabling an actual adapter:
+Before completing/enabling the PortOne integration:
 
 1. Privately establish the intended account's merchant/store/channel/PG identity and TEST checkout profile; confirm USD cross-border sandbox eligibility, including approved buyer countries. The conditionally selected design is not proof of eligibility.
 2. Configure only test credentials and the test webhook signing secret through secret management. Never paste them in chat, commit them or expose them to the browser. PAYMENTS_ENABLED alone is insufficient; production mode is rejected.
-3. Implement the official-SDK adapter against the provider port, with exact minor-unit conversion, pinned identity/test checks, original-body signature validation and server-side retrieval. It must prove a terminal payment cannot capture again before declaring checkoutClosed. Session/link expiry alone is insufficient.
+3. Complete the existing PortoneService with approved hosted sessions and original-body signature validation; retain the exact USD minor-unit, pinned TEST identity and server-side retrieval checks. Do not add another provider layer or install an SDK without the required approval. It must prove a terminal payment cannot capture again before declaring checkoutClosed. Session/link expiry alone is insufficient.
 4. Configure the trusted frontend return origin and fixed /orders/process?paymentId=<local-id> return path in that adapter; never accept a browser-supplied redirect URL. Execute real sandbox transactions and signed deliveries before claiming Phase 6 provider completion or starting Phase 7.
 
 Official hosted-checkout documentation describes PayPal support, TEST profiles, country/currency-dependent evaluation and server-created sessions. This establishes a possible technical route, not this merchant's eligibility: [PortOne hosted checkout](https://developers.portone.io/opi/ko/extra/hosted-checkout/readme-v2?v=v2). Korean domestic PayPal restrictions also require a verified cross-border test scenario: [PayPal Korea](https://www.paypal.com/kr/digital-wallet/system-enhancement-faq?locale.x=en_KR).

@@ -1,6 +1,6 @@
 import { PaymentRecord } from '../../libs/dto/payment/payment-record';
 import { PaymentStatus } from '../../libs/enums/payment.enum';
-import { ProviderPaymentFacts, SandboxIdentity } from './payment-provider';
+import { ProviderPaymentFacts, SandboxIdentity } from './portone.service';
 
 const text = (value: unknown) => typeof value === 'string' && value.length > 0 && value.length <= 200;
 

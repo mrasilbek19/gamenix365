@@ -1,10 +1,28 @@
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { getConnectionToken } from '@nestjs/mongoose';
+import { GraphQLSchemaHost } from '@nestjs/graphql';
+import { WsAdapter } from '@nestjs/platform-ws';
+import { AppModule } from '../../app.module';
+import { BatchModule } from '../../../../gamenix-batch/src/batch.module';
+import { SocketGateway } from '../../socket/socket.gateway';
+import { NotificationService } from '../notification/notification.service';
 import { Types } from 'mongoose';
 import * as request from 'supertest';
 import { PaymentWorkflowService } from './payment-workflow.service';
-import { UnconfiguredPaymentProvider, providerDeadline } from './payment-provider';
+import { PortoneService, providerDeadline } from './portone.service';
 import { PaymentWebhookController } from './payment-webhook.controller';
+
+jest.mock('apps/gamenix-api/src/libs/enums/common.enum',
+    () => jest.requireActual('../../libs/enums/common.enum'), { virtual: true });
+jest.mock('apps/gamenix-api/src/libs/enums/member.enum',
+    () => jest.requireActual('../../libs/enums/member.enum'), { virtual: true });
+jest.mock('apps/gamenix-api/src/libs/enums/product.enum',
+    () => jest.requireActual('../../libs/enums/product.enum'), { virtual: true });
+jest.mock('apps/gamenix-api/src/schemas/Product.model',
+    () => jest.requireActual('../../schemas/Product.model'), { virtual: true });
+jest.mock('apps/gamenix-api/src/schemas/Member.model',
+    () => jest.requireActual('../../schemas/Member.model'), { virtual: true });
 
 describe('Unconfigured sandbox fails closed', () => {
     it('bounds a hung provider call without cancelling or accepting its late result', async () => {
@@ -22,7 +40,7 @@ describe('Unconfigured sandbox fails closed', () => {
     });
     const member = new Types.ObjectId();
     const input = { orderId: String(new Types.ObjectId()), buyerCountry: 'US', idempotencyKey: 'synthetic-key-0001' };
-    const make = (settings: Record<string, string>, provider: any = new UnconfiguredPaymentProvider()) => {
+    const make = (settings: Record<string, string>, provider: any = new PortoneService({} as any, new ConfigService(settings))) => {
         const model = { create: jest.fn(), findOne: jest.fn(), updateMany: jest.fn() };
         const service = new PaymentWorkflowService(model as any, model as any, {} as any, provider, new ConfigService(settings));
         return { model, service };
@@ -66,5 +84,104 @@ describe('Unconfigured sandbox fails closed', () => {
             expect(workflow.receiveWebhook.mock.calls[0][0]).toEqual(Buffer.from(body));
             expect(workflow.receiveWebhook.mock.calls[0][1]['webhook-signature']).toBe('fixture-only');
         } finally { await app.close(); }
+    });
+});
+
+describe('Petora PortOne lookup adapted to USD sandbox facts', () => {
+    const paymentId = `gamenix-test-${new Types.ObjectId()}`;
+    const settings = { NODE_ENV: 'test', PORTONE_ENVIRONMENT: 'SANDBOX', PORTONE_V2_API_SECRET: 'fixture-secret',
+        PORTONE_MERCHANT_ID: 'fixture-merchant', PORTONE_STORE_ID: 'fixture-store',
+        PORTONE_TEST_CHANNEL_ID: 'fixture-channel', PORTONE_TEST_PG_MERCHANT_ID: 'fixture-pg' };
+    const data = () => ({ id: paymentId, status: 'PAID', merchantId: settings.PORTONE_MERCHANT_ID,
+        storeId: settings.PORTONE_STORE_ID, version: 'V2', transactionId: 'fixture-capture', paidAt: new Date().toISOString(),
+        currency: 'USD', amount: { total: 1050, paid: 1050, cancelled: 0 },
+        channel: { type: 'TEST', id: settings.PORTONE_TEST_CHANNEL_ID, pgMerchantId: settings.PORTONE_TEST_PG_MERCHANT_ID },
+        customData: JSON.stringify({ bindingKey: 'a'.repeat(64) }) });
+    const make = (overrides = {}) => {
+        const get = jest.fn().mockResolvedValue({ data: data() });
+        const values = { ...settings, ...overrides };
+        const service = new PortoneService({ axiosRef: { get } } as any, { get: (key) => values[key] } as ConfigService);
+        return { service, get };
+    };
+
+    it('uses the authenticated REST lookup and returns only allowlisted TEST/USD facts in cents', async () => {
+        const { service, get } = make();
+        expect(await service.getPayment(paymentId)).toMatchObject({ providerPaymentId: paymentId,
+            status: 'SUCCEEDED', amountMinor: 1050, environment: 'SANDBOX', captured: true, checkoutClosed: false });
+        expect(get).toHaveBeenCalledWith(`https://api.portone.io/payments/${paymentId}`,
+            expect.objectContaining({ headers: { Authorization: 'PortOne fixture-secret' }, params: { storeId: 'fixture-store' }, maxRedirects: 0 }));
+        // Even complete lookup settings are not evidence of merchant/checkout compatibility.
+        expect(await service.verifiedSandbox()).toBeNull();
+    });
+
+    it.each([{ NODE_ENV: 'production' }, { PORTONE_ENVIRONMENT: 'LIVE' }, { PORTONE_V2_API_SECRET: '' },
+        { PORTONE_TEST_CHANNEL_ID: '' }])('rejects unsafe or incomplete lookup configuration %j', async (overrides) => {
+        const { service, get } = make(overrides);
+        await expect(service.getPayment(paymentId)).rejects.toThrow('not configured');
+        expect(get).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { currency: 'KRW' }, { currency: undefined }, { merchantId: 'other' }, { storeId: 'other' }, { id: 'other' }, { version: 'V1' },
+        { channel: { ...data().channel, type: 'LIVE' } }, { channel: { ...data().channel, id: 'other' } },
+        { channel: { ...data().channel, pgMerchantId: 'other' } }, { amount: { total: 10.5 } },
+        { amount: { total: 1050, paid: 1049, cancelled: 0 } }, { amount: { total: 1050, paid: 1050, cancelled: 1 } },
+        { customData: 'invalid' }, { customData: '{}' }, { transactionId: '' }, { paidAt: 'invalid' },
+    ])('rejects incomplete or conflicting provider facts %j', async (override) => {
+        const { service, get } = make();
+        get.mockResolvedValueOnce({ data: { ...data(), ...override } });
+        await expect(service.getPayment(paymentId)).rejects.toThrow();
+    });
+
+    it('keeps cancellation/partial refund and unknown outcomes uncertain rather than reopening checkout', async () => {
+        const { service, get } = make();
+        for (const status of ['CANCELLED', 'PARTIAL_CANCELLED', 'UNRECOGNIZED']) {
+            get.mockResolvedValueOnce({ data: { ...data(), status } });
+            expect(await service.getPayment(paymentId)).toMatchObject({ status: 'UNKNOWN', captured: false, checkoutClosed: false });
+        }
+    });
+
+    it('rejects non-server references and sanitizes provider lookup errors', async () => {
+        const { service, get } = make();
+        await expect(service.getPayment('browser-provided-id')).rejects.toThrow('Invalid payment reference');
+        expect(get).not.toHaveBeenCalled();
+        get.mockRejectedValueOnce({ response: { status: 404 } });
+        await expect(service.getPayment(paymentId)).rejects.toThrow('Payment not found');
+        get.mockRejectedValueOnce(new Error('Authorization: PortOne fixture-secret'));
+        await expect(service.getPayment(paymentId)).rejects.toThrow('Payment lookup failed');
+    });
+});
+
+
+describe('Adapted modules in the real application graph', () => {
+    const connection = { readyState: 1, db: { admin: () => ({ command: async () => ({ setName: 'fixture', logicalSessionTimeoutMinutes: 30, maxWireVersion: 17 }) }) }, models: {}, model: jest.fn(() => ({ init: jest.fn().mockResolvedValue(undefined) })), close: jest.fn() };
+
+    it('initializes the API GraphQL schema and shares one socket/provider instance', async () => {
+        const module = await Test.createTestingModule({ imports: [AppModule] })
+            .overrideProvider(getConnectionToken()).useValue(connection).compile();
+        const app = module.createNestApplication();
+        app.useWebSocketAdapter(new WsAdapter(app));
+        try {
+            await app.init();
+            const schema = app.get(GraphQLSchemaHost).schema;
+            expect(Object.keys(schema.getQueryType().getFields())).toEqual(expect.arrayContaining([
+                'getReviews', 'getNotifications', 'getPaymentStatus', 'getTestCheckoutAvailability',
+            ]));
+            expect(Object.keys(schema.getMutationType().getFields())).toEqual(expect.arrayContaining([
+                'createNewReview', 'updateReview', 'updateReviewByAdmin', 'removeReviewByAdmin', 'createTestCheckoutSession',
+            ]));
+            expect((app.get(NotificationService) as any).socketGateway).toBe(app.get(SocketGateway));
+            expect((app.get(PaymentWorkflowService) as any).provider).toBe(app.get(PortoneService));
+            expect(app.get(PaymentWebhookController)).toBeDefined();
+        } finally { await app.close(); }
+    });
+
+    it('keeps API webhook routes out of the batch application', async () => {
+        const module = await Test.createTestingModule({ imports: [BatchModule] })
+            .overrideProvider(getConnectionToken()).useValue(connection).compile();
+        try {
+            expect(module.get(PaymentWorkflowService)).toBeDefined();
+            expect(() => module.get(PaymentWebhookController)).toThrow();
+        } finally { await module.close(); }
     });
 });

@@ -9,7 +9,7 @@ import ProductSchema from 'apps/gamenix-api/src/schemas/Product.model';
 import MemberSchema from 'apps/gamenix-api/src/schemas/Member.model';
 import { OrderEmailModule } from '../../gamenix-api/src/components/order-email/order-email.module';
 import { OrderEmailWorker } from './order-email.worker';
-import { PaymentCoreModule } from '../../gamenix-api/src/components/payment/payment-core.module';
+import { PaymentModule } from '../../gamenix-api/src/components/payment/payment.module';
 import { PaymentWorker } from './payment.worker';
 
 @Module({
@@ -18,7 +18,7 @@ import { PaymentWorker } from './payment.worker';
     DatabaseModule,
     ScheduleModule.forRoot(),
     OrderEmailModule,
-    PaymentCoreModule,
+    PaymentModule,
     MongooseModule.forFeature([{ name: 'Product', schema: ProductSchema }]),
     MongooseModule.forFeature([{ name: "Member", schema: MemberSchema }]),
   ],

@@ -8,7 +8,7 @@ import PaymentEventSchema from '../../schemas/PaymentEvent.model';
 import { PaymentWorkflowService } from './payment-workflow.service';
 import { PaymentService } from './payment.service';
 import { paymentFixture } from './payment.fixture';
-import { ProviderPaymentFacts } from './payment-provider';
+import { ProviderPaymentFacts } from './portone.service';
 
 // Synthetic provider protocol ONLY. This is not a PortOne/PayPal signature or sandbox integration test.
 const uri = process.env.PAYMENT_TEST_MONGO_URI;

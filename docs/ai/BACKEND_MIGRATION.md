@@ -1,5 +1,9 @@
 # Backend migration: Nestar → Gamenix
 
+## Petora modules adapted — 2026-10-17
+
+Added Petora PRODUCT/SHOP reviews and copied recipient-only notification socket delivery after privacy fixes. Existing mail, USD order emails/retries and authentication remain. PaymentModule now provides concrete PortoneService; generic provider wiring and the extra core module were removed after replacing every caller. TEST/USD REST lookup is adapted, while account/profile verification, hosted checkout and actual signature handling remain blocked. Existing payment/order protections are preserved. See COMPLETED_TASKS for validation; earlier entries below are historical.
+
 ## Provider-independent sandbox workflow; provider adapter still blocked — 2026-10-17
 
 Extended the existing payment foundation with trusted persisted-order USD snapshots, idempotent active attempts, strict verification evidence, guarded GraphQL session/availability operations, raw-body webhook/event boundary and batch reconciliation. Default provider is unconfigured and cannot be enabled by flags; no PortOne SDK, external provider call or actual provider signature integration exists. The conditionally approved account/PayPal TEST channel/USD profile remains unverified. getPaymentStatus now exposes verifiedSuccess only from persisted matching capture evidence.
