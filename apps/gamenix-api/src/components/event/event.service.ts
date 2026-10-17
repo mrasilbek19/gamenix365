@@ -1,6 +1,6 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, FilterQuery, Model, ObjectId } from 'mongoose';
+import { ClientSession, FilterQuery, Model, ObjectId, Types } from 'mongoose';
 import { Event, Events } from '../../libs/dto/event/event';
 import { AllEventsInquiry, EventInput, EventsInquiry, ShopEventsInquiry } from '../../libs/dto/event/event.input';
 import { EventUpdate } from '../../libs/dto/event/event.update';
@@ -13,6 +13,7 @@ import { ParticipantStatus } from '../../libs/enums/participant.enum';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { Direction } from '../../libs/enums/common.enum';
 import { shapeIntoMongoObjectId } from '../../libs/config';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class EventService {
@@ -23,6 +24,7 @@ export class EventService {
         private readonly eventParticipantModel: Model<EventParticipant>,
         @InjectModel('Member')
         private readonly memberModel: Model<Member>,
+        @Optional() private readonly notificationService?: NotificationService,
     ) { }
 
     public async createEvent(
@@ -393,11 +395,13 @@ export class EventService {
         byAdmin = false,
     ): Promise<Event> {
         const session = await this.eventModel.db.startSession();
+        let eventBeforeUpdate: Event;
 
         try {
-            return await session.withTransaction(async () => {
+            const result = await session.withTransaction(async () => {
                 const member = await this.getActiveMember(memberId, [byAdmin ? MemberType.ADMIN : MemberType.SHOP], session);
                 const targetEvent = await this.lockEvent(eventId, session);
+                eventBeforeUpdate = targetEvent;
 
                 this.checkEventOwner(member, targetEvent);
 
@@ -438,6 +442,15 @@ export class EventService {
 
                 return result.toObject();
             });
+            if (byAdmin && eventBeforeUpdate.eventStatus === EventStatus.PENDING &&
+                (result.eventStatus === EventStatus.PROCESS || result.eventStatus === EventStatus.PAUSED)) {
+                await this.notificationService?.notifyEventModeration(
+                    new Types.ObjectId(String(eventBeforeUpdate._id)),
+                    new Types.ObjectId(String(eventBeforeUpdate.eventOrganizer)),
+                    result.eventStatus === EventStatus.PROCESS,
+                );
+            }
+            return result;
         } finally {
             await session.endSession();
         }

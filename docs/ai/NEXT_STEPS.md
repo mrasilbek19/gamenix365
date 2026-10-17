@@ -1,5 +1,17 @@
 # Next steps
 
+## Persistent notifications backend complete — 2026-10-17
+
+Use the authenticated GraphQL contract for the existing frontend bell:
+
+- `getUnreadNotificationsCount` supplies the badge number.
+- `getNotifications(input: { page, limit, search })` returns `list` and `metaCounter`; send `search.notificationStatus: WAIT` for unread-only or omit it for all notifications. Optional group and createdAt bounds are supported.
+- Call `updateNotification(input: { notificationId, notificationStatus: READ })` when one item is opened, or `markAllNotificationsRead` for the bulk action. Send the access token in the Authorization header. There is no create operation; the backend supplies recipient and event content.
+
+Initial backend triggers are implemented for shop approval/rejection, order created/status changed, event approved/rejected and successful email verification. Payment notices await a payment system. Persistent queries are ready for frontend integration, which has not been done here. Both TypeScript checks, API build and 234 tests pass; 22 existing Mongo cases are skipped without their explicit URIs.
+
+The socket gateway must not carry private notifications in its current form: guests connect without authentication, chat/presence/history are broadcast to every socket, and token query values are logged. Keep notifications persistent-only until a separately reviewed socket privacy change.
+
 ## Email verification backend complete — 2026-10-16
 
 SMTP/capture and requestEmailVerification/verifyEmail are implemented and tested; do not repeat the earlier planned verification work below. See [EMAIL_VERIFICATION.md](EMAIL_VERIFICATION.md). Backend requires Node 20+ and transaction-capable MongoDB. Real SMTP delivery still needs operator-configured credentials/sender and FRONTEND_ORIGIN; none were added to .env or exercised against a real mailbox. Development capture is the non-production default.

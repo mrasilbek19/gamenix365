@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Member, Members } from '../../libs/dto/member/member';
 import { AgentsInquiry, LoginInput, MemberInput, MembersInquiry } from '../../libs/dto/member/member.input';
 import { Direction, Message } from '../../libs/enums/common.enum';
@@ -17,6 +17,7 @@ import { LikeGroup } from '../../libs/enums/like.enum';
 import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
 import { lookupAuthMemberLiked } from '../../libs/config';
 import { isEmail } from 'class-validator';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class MemberService {
@@ -26,6 +27,7 @@ export class MemberService {
         private authService: AuthService,
         private viewService: ViewService,
         private likeService: LikeService,
+        @Optional() private readonly notificationService?: NotificationService,
     ) { }
 
     public async assertActiveShop(memberId: ObjectId): Promise<void> {
@@ -272,6 +274,9 @@ export class MemberService {
     }
 
     public async updateMemberByAdmin(input: MemberUpdate): Promise<Member> {
+        const previousMember = input.memberStatus === undefined
+            ? null
+            : await this.memberModel.findOne({ _id: input._id }).select('memberType memberStatus').lean().exec();
         this.prepareMemberEmail(input);
         this.prepareShopName(input);
         const search: T = { _id: input._id };
@@ -304,6 +309,16 @@ export class MemberService {
                 throw err;
             });
         if (!result) throw new InternalServerErrorException(Message.UPDATE_FAILED);
+
+        if (previousMember?.memberType === MemberType.SHOP && result.memberType === MemberType.SHOP &&
+            previousMember.memberStatus === MemberStatus.PENDING &&
+            result.memberStatus === MemberStatus.ACTIVE) {
+            await this.notificationService?.notifyShopModeration(new Types.ObjectId(String(result._id)), true);
+        } else if (previousMember?.memberType === MemberType.SHOP && result.memberType === MemberType.SHOP &&
+            previousMember.memberStatus === MemberStatus.PENDING &&
+            result.memberStatus === MemberStatus.BLOCK) {
+            await this.notificationService?.notifyShopModeration(new Types.ObjectId(String(result._id)), false);
+        }
 
         return result;
     }

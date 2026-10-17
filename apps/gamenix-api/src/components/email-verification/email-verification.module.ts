@@ -7,9 +7,10 @@ import { AuthModule } from '../auth/auth.module';
 import { MailModule } from '../mail/mail.module';
 import { EmailVerificationResolver } from './email-verification.resolver';
 import { EmailVerificationService } from './email-verification.service';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-    imports: [ConfigModule, AuthModule, MailModule, MongooseModule.forFeature([
+    imports: [ConfigModule, AuthModule, MailModule, NotificationModule, MongooseModule.forFeature([
         { name: 'Member', schema: MemberSchema }, { name: 'AuthToken', schema: AuthTokenSchema },
     ])],
     providers: [EmailVerificationResolver, EmailVerificationService],

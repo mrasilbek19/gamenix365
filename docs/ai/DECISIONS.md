@@ -1,5 +1,14 @@
 # Architectural decisions
 
+## Persistent member notifications — 2026-10-17
+
+- Reuse the existing `notifications` collection and preserve `NotificationStatus.WAIT` / `READ` and prior LIKE/COMMENT types/groups. Add ORDER, SHOP, EVENT and ACCOUNT notification groups/types for the initial marketplace/account triggers.
+- Only trusted business services create notifications. There is no GraphQL create operation and no client-supplied recipient, author, reference or dedupe key. Resolve recipient only from the triggering business record; system-generated notices may omit authorId.
+- Scope inbox reads/counts/updates to the authenticated recipient. Inbox supports page/limit (maximum 100), status/group/date filters and allowlisted createdAt/updatedAt sort. `updateNotification` changes status only; `markAllNotificationsRead` only changes the caller's WAIT rows.
+- Generate unique keys server-side from notification type, reference, recipient and (for order transitions) target status. Duplicate writes are ignored. Notification persistence is best-effort and must not reverse successful business operations.
+- Initial triggers: pending SHOP → ACTIVE/BLOCK; pending Event → PROCESS/PAUSED (approval/rejection); completed order/item creation; successful order status transition; successful email verification. Orders/events point to their existing documents. Payment notices wait for a payment system.
+- Do not add private notification delivery to the current WebSocket gateway. The current gateway accepts guests and broadcasts chat, presence and history globally, and logs token query values. Review socket auth/privacy separately before private real-time delivery.
+
 ## Member email and verification preparation — 2026-10-13
 
 - Add optional memberEmail using the existing Member collection/schema/DTOs; normalize with trim/lowercase and validate email format. Null explicitly clears email; undefined/omitted leaves it alone. Keep existing signup and nickname/password login compatible, including email-less USER/SHOP/ADMIN documents.

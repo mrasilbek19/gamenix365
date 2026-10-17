@@ -10,6 +10,7 @@ import { BoardArticleModule } from './board-article/board-article.module';
 import { EventModule } from './event/event.module';
 import { OrderModule } from './order/order.module';
 import { EmailVerificationModule } from './email-verification/email-verification.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EmailVerificationModule } from './email-verification/email-verification
     EventModule,
     OrderModule,
     EmailVerificationModule,
+    NotificationModule,
   ],
 })
 export class ComponentsModule { }

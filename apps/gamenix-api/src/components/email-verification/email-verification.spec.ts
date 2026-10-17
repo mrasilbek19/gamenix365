@@ -30,7 +30,8 @@ const config = (changes = {}) => {
 @Global()
 @Module({
     providers: [{ provide: getConnectionToken(), useValue: {
-        models: { Member: {}, AuthToken: { init: async () => {} } },
+        models: { Member: {}, AuthToken: { init: async () => {} }, Notification: {} },
+        model: () => ({}),
         db: { admin: () => ({ command: async () => ({ setName: 'fixture', maxWireVersion: 25, logicalSessionTimeoutMinutes: 30 }) }) },
     } }],
     exports: [getConnectionToken()],

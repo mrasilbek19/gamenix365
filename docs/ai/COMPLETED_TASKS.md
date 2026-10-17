@@ -1,5 +1,19 @@
 # Completed tasks and evidence ledger
 
+## Persistent notifications — 2026-10-17
+
+Implemented the notification phase on the existing `notifications` collection. Added `NotificationModule`, `NotificationService`, `NotificationResolver` and object/query/update DTOs. Existing WAIT/READ states and LIKE/COMMENT values remain. Added order/shop/event/account types and groups, nullable authorId for system notices, orderId/eventId refs, a server-generated unique dedupe key, and recipient/status/date indexes. No notification create mutation is exposed.
+
+GraphQL operations are `getNotifications(input)`, `getUnreadNotificationsCount`, `updateNotification(input)` and `markAllNotificationsRead`. Authenticated recipient identity is always supplied by AuthMember. Lists paginate up to 100 and filter by group/status/createdAt bounds, with allowlisted timestamp sorting. Single-item and bulk read changes include receiverId in their MongoDB predicates.
+
+Triggers: SHOP PENDING → ACTIVE/BLOCK sends approval/rejection to that SHOP; a completed order/item creation and each successful buyer-driven order status transition notify the owning SHOP; admin Event PENDING → PROCESS/PAUSED sends approval/rejection to the organizer; successful email verification notifies the verified account. All notification persistence is best-effort, recipient existence is checked, duplicate keys are ignored, and system-generated notices have no human author. No payment system or notification WebSocket delivery was added.
+
+Files: `apps/gamenix-api/src/components/notification/*`, `apps/gamenix-api/src/libs/dto/notification/*`, `libs/enums/notification.enum.ts`, `libs/config.ts`, `schemas/Notification.model.ts`, plus service/module wiring in Components, Member, Order, Event and EmailVerification. The email-verification module test fixture now provides the extra Notification model.
+
+Validation: `npx jest --runInBand` — 234 passed, 22 skipped across 8 suites; the skipped cases require explicitly configured test MongoDB URIs. API and batch TypeScript checks pass; `npm run build` passes. Focused notification cases cover GraphQL operation exposure, recipient-scoped filters and updates, unread count, pagination, mark-all, dedupe, missing recipient and trigger recipient mapping. No live index migration/deployment was performed.
+
+Socket privacy review: gateway accepts unauthenticated guests; globally broadcasts chat messages and presence; sends the same in-memory message history to every connection; logs token query parameters. Notifications remain persistent-only. Do not use the public chat broadcast for private notifications.
+
 ## SMTP email verification — 2026-10-16
 
 Implemented backend Phase 2 with MailModule/MailService, Nodemailer SMTP and bounded development/test capture, escaped templates, purpose-scoped hashed authentication tokens and owner-request/public-token GraphQL mutations. requestEmailVerification has no client-selected member/email/redirect; verifyEmail checks purpose, hash, expiry, unused state, current email/version and current eligible status. ACTIVE accounts and PENDING SHOP accounts are supported; verification does not approve shops or change username/password login.

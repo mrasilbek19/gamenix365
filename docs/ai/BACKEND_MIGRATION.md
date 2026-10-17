@@ -1,5 +1,13 @@
 # Backend migration: Nestar → Gamenix
 
+## Persistent notifications implemented — 2026-10-17
+
+Added recipient-scoped GraphQL inbox operations over the existing `notifications` collection. Existing `WAIT` / `READ` status values remain; the schema now supports optional system authors, order/event refs, server-generated unique deduplication keys and recipient/status/date indexes. `NotificationModule`, service, resolver and DTOs are wired into the API. Queries and updates always derive the recipient from AuthMember; no client notification-create mutation exists.
+
+Triggers run after shop approval/rejection, order creation/status changes, event approval/rejection and successful email verification. Notification writes check the recipient, ignore duplicate keys and catch storage failures so completed business operations remain successful. Payment notifications and WebSocket delivery were not added.
+
+The existing socket gateway has privacy concerns: unauthenticated guests are accepted, chat messages and connection presence are broadcast to every socket, the in-memory chat history is sent to every connection, and token query values are logged. Notifications remain persistent-only and are not sent through that public channel. Validation: 234 tests pass, 22 integration cases are skipped without their explicit test Mongo URIs; both app TypeScript checks and API build pass. No live database/index deployment was performed. See COMPLETED_TASKS for the contract and limitations.
+
 ## SMTP email verification implemented — 2026-10-16
 
 Phase 2 now provides reusable Nodemailer SMTP/capture mail, owner-requested verification and public token consumption using auth-only MongoDB transactions. Private email versions invalidate old grants on self/admin email changes. Username/password login, optional email, SHOP approval and existing guard/order/event policies remain unchanged. Tokens are hashed, expiring and single-use; account resend limits persist in MongoDB and IP limits are per process. Node 20+ is required by patched Nodemailer. Development transaction support and 18 isolated real-MongoDB cases were verified; all 242 executed tests, both TypeScript checks and API build pass. No application data migration or real SMTP sending occurred. See [EMAIL_VERIFICATION.md](EMAIL_VERIFICATION.md) for the actual contract/configuration and deployment limits. Earlier email-foundation-only descriptions below are historical.

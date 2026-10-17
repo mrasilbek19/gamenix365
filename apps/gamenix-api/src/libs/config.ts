@@ -16,6 +16,7 @@ export const availableProductSorts = [
 
 export const availableCommentSorts = ['createdAt', 'updatedAt']
 export const availableEventSorts = ['createdAt', 'updatedAt', 'eventDate', 'eventStart', 'eventEnd'];
+export const availableNotificationSorts = ['createdAt', 'updatedAt'];
 export const availableBoardArticles = ['createdAt', 'updatedAt', 'articleLikes', 'articleViews']
 
 /** IMAGE CONFIGURATION **/

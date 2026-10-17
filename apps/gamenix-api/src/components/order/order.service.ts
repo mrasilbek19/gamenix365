@@ -1,6 +1,6 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, ObjectId } from 'mongoose';
+import { FilterQuery, Model, ObjectId, Types } from 'mongoose';
 import { Order } from '../../libs/dto/order/order';
 import { OrderInput, OrdersInquiry } from '../../libs/dto/order/order.input';
 import { OrderUpdate } from '../../libs/dto/order/order.update';
@@ -12,6 +12,7 @@ import { ProductStatus, ProductType } from '../../libs/enums/product.enum';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { MemberService } from '../member/member.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class OrderService {
@@ -25,6 +26,7 @@ export class OrderService {
         @InjectModel('Member')
         private readonly memberModel: Model<Member>,
         private readonly memberService: MemberService,
+        @Optional() private readonly notificationService?: NotificationService,
     ) { }
 
     public async createOrder(
@@ -92,6 +94,9 @@ export class OrderService {
         });
 
         await this.recordOrderItem(result._id, orderItems);
+        await this.notificationService?.notifyOrderCreated(
+            new Types.ObjectId(String(result._id)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(shopId)),
+        );
         return result;
     }
 
@@ -195,7 +200,12 @@ export class OrderService {
         if (!result) throw new ConflictException('Order status changed; retry the request');
 
         // Finishing an order only changes its status.
-        if (orderStatus === OrderStatus.FINISHED) return result;
+        if (orderStatus === OrderStatus.FINISHED) {
+            await this.notificationService?.notifyOrderStatusChanged(
+                new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
+            );
+            return result;
+        }
 
         // Processing an order deducts stock and gives the buyer one point.
         const orderItems: OrderItem[] = await this.orderItemModel
@@ -226,6 +236,10 @@ export class OrderService {
             modifier: 1,
         });
         if (!updatedMember) throw new ForbiddenException('An active member is required');
+
+        await this.notificationService?.notifyOrderStatusChanged(
+            new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
+        );
 
         return result;
     }

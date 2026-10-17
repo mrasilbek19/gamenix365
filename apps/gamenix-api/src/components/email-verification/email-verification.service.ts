@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, OnModuleInit, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { isEmail } from 'class-validator';
@@ -9,6 +9,7 @@ import { Member } from '../../libs/dto/member/member';
 import { AuthTokenPurpose } from '../../libs/enums/auth-token.enum';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { MailService } from '../mail/mail.service';
+import { NotificationService } from '../notification/notification.service';
 
 const eligibleMember = { deletedAt: null, $or: [
     { memberStatus: MemberStatus.ACTIVE },
@@ -28,6 +29,7 @@ export class EmailVerificationService implements OnModuleInit {
         @InjectConnection() private readonly connection: Connection,
         private readonly mailService: MailService,
         config: ConfigService,
+        @Optional() private readonly notificationService?: NotificationService,
     ) {
         const environment = config.get<string>('NODE_ENV');
         const origin = config.get<string>('FRONTEND_ORIGIN') ?? (environment === 'production' ? '' : 'http://localhost:3000');
@@ -111,6 +113,7 @@ export class EmailVerificationService implements OnModuleInit {
         this.checkIpLimit('verify', ip, 60);
         if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) throw invalidToken();
         const session = await this.connection.startSession();
+        let verifiedMemberId: Types.ObjectId;
         try {
             await session.withTransaction(async () => {
                 const now = new Date();
@@ -119,6 +122,7 @@ export class EmailVerificationService implements OnModuleInit {
                     expiresAt: { $gt: now }, consumedAt: null,
                 }, { $set: { consumedAt: now } }, { new: true, session }).lean().exec();
                 if (!grant) throw invalidToken();
+                verifiedMemberId = grant.memberId;
                 const member = await this.memberModel.updateOne({
                     _id: grant.memberId, memberEmail: grant.emailSnapshot, ...eligibleMember,
                     $expr: { $eq: [{ $ifNull: ['$memberEmailVersion', 0] }, grant.emailVersion] },
@@ -128,6 +132,7 @@ export class EmailVerificationService implements OnModuleInit {
         } finally {
             await session.endSession();
         }
+        await this.notificationService?.notifyEmailVerified(verifiedMemberId);
         return true;
     }
 
