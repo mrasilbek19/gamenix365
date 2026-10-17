@@ -11,6 +11,7 @@ import { EventModule } from './event/event.module';
 import { OrderModule } from './order/order.module';
 import { EmailVerificationModule } from './email-verification/email-verification.module';
 import { NotificationModule } from './notification/notification.module';
+import { ReviewModule } from './review/review.module';
 import { PaymentModule } from './payment/payment.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { PaymentModule } from './payment/payment.module';
     EmailVerificationModule,
     NotificationModule,
     PaymentModule,
+    ReviewModule,
   ],
 })
 export class ComponentsModule { }

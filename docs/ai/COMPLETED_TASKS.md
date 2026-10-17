@@ -1,5 +1,11 @@
 # Completed tasks and evidence ledger
 
+## Petora review module copied and adapted — 2026-10-17
+
+Copied Petora's ReviewModule/Resolver/Service, three DTO files, enum and Review schema. Adapted targets to PRODUCT/SHOP, current ACTIVE authors/shops and PROCESS products; no pet/service/agent logic or new rating fields on existing collections. Preserved Petora's public paginated ratings/distribution, owner edits and ADMIN moderation/removal of DELETE reviews. Added atomic unique author/group/target index, integer stars, bounded input and private-author-field exclusion. No purchase-verification claim, points, stock, order or authentication change.
+
+Operations: createNewReview, updateReview, getReviews, updateReviewByAdmin and removeReviewByAdmin. Reviews use the necessary new reviews collection; comments remain unchanged. Validation: 12 focused review tests pass; API/batch TypeScript and both Nest builds pass under Node 20.19.0. No live database/provider/email used in these checks.
+
 ## Petora comparison and copied password recovery — 2026-10-17
 
 Read Petora's actual MemberService/Resolver/DTOs, PasswordReset schema, MailService/templates, notification/socket delivery, PortoneService/order integration and AuthService. Kept working Gamenix functionality and implemented the simplest missing feature only: Petora's requestPasswordReset → verifyPasswordResetCode → resetPassword flow.

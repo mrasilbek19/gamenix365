@@ -14,6 +14,7 @@ export const availableProductSorts = [
     'productPrice',
 ];
 
+export const availableReviewSorts = ['createdAt', 'reviewRating'];
 export const availableCommentSorts = ['createdAt', 'updatedAt']
 export const availableEventSorts = ['createdAt', 'updatedAt', 'eventDate', 'eventStart', 'eventEnd'];
 export const availableNotificationSorts = ['createdAt', 'updatedAt'];
