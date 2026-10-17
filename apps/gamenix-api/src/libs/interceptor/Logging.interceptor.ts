@@ -26,13 +26,17 @@ export class LoggingInterceptor implements NestInterceptor {
         } else if (requestType === 'graphql') {
             const gqlContext = GqlExecutionContext.create(context);
             const fieldName = gqlContext.getInfo()?.fieldName;
-            const privateRequest = ['requestEmailVerification', 'verifyEmail'].includes(fieldName);
+            const body = gqlContext.getContext().req.body;
+            const paymentOperation = /\b(createTestCheckoutSession|getPaymentStatus|getTestCheckoutAvailability)\b/;
+            const privateRequest = ['requestEmailVerification', 'verifyEmail', 'createTestCheckoutSession',
+                'getPaymentStatus', 'getTestCheckoutAvailability'].includes(fieldName)
+                || (Array.isArray(body) ? body : [body]).some((request) => paymentOperation.test(request?.query ?? ''));
             this.logger.log(privateRequest ? fieldName : `${this.stringify(gqlContext.getContext().req.body)}`, 'REQUEST');
 
             return next.handle().pipe(
                 tap((context) => {
                     const responseTime = Date.now() - recordTime;
-                    this.logger.log(`${this.stringify(context)} - ${responseTime}ms\n\n`, 'RESPONSE');
+                    this.logger.log(`${privateRequest ? fieldName : this.stringify(context)} - ${responseTime}ms\n\n`, 'RESPONSE');
                 }),
             );
         }

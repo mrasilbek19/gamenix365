@@ -19,6 +19,9 @@ export class Payment {
     @Field(() => PaymentStatus)
     status: PaymentStatus;
 
+    @Field(() => Boolean, { description: 'True only when persisted server verification proves capture.' })
+    verifiedSuccess: boolean;
+
     @Field(() => PaymentEnvironment)
     environment: PaymentEnvironment;
 

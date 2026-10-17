@@ -38,6 +38,22 @@ SnapshotSchema.pre('validate', function () {
     }
 });
 
+// Only the verification service writes this allowlisted evidence. No raw provider/card payloads.
+const VerificationSchema = new Schema({
+    version: { type: Number, enum: [1], required: true },
+    providerPaymentId: { type: String, required: true, maxlength: 200 },
+    transactionId: { type: String, required: true, maxlength: 200 },
+    amountMinor: { type: Number, required: true, min: 1, validate: Number.isSafeInteger },
+    currency: { type: String, enum: ['USD'], required: true },
+    merchantId: { type: String, required: true, maxlength: 200 },
+    storeId: { type: String, required: true, maxlength: 200 },
+    channelId: { type: String, required: true, maxlength: 200 },
+    pgMerchantId: { type: String, required: true, maxlength: 200 },
+    environment: { type: String, enum: ['SANDBOX'], required: true },
+    bindingKey: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+    capturedAt: { type: Date, required: true },
+}, { _id: false, strict: 'throw' });
+
 const PaymentSchema = new Schema({
     memberId: { type: Schema.Types.ObjectId, ref: 'Member', required: true, immutable: true },
     orderId: { type: Schema.Types.ObjectId, ref: 'Order', required: true, immutable: true },
@@ -55,6 +71,19 @@ const PaymentSchema = new Schema({
     snapshot: { type: SnapshotSchema, required: true, immutable: true, select: false },
     providerPaymentId: { type: String, maxlength: 200, select: false },
     providerSessionId: { type: String, maxlength: 200, select: false },
+    buyerCountry: { type: String, match: /^[A-Z]{2}$/, immutable: true, select: false },
+    storeId: { type: String, maxlength: 200, immutable: true, select: false },
+    channelId: { type: String, maxlength: 200, immutable: true, select: false },
+    pgMerchantId: { type: String, maxlength: 200, immutable: true, select: false },
+    checkoutUrl: { type: String, maxlength: 2048, select: false },
+    verification: { type: VerificationSchema, select: false },
+    // No default: historical foundation rows must not acquire an active claim on deployment.
+    active: { type: Boolean, select: false },
+    checkAttempts: { type: Number, min: 0, validate: Number.isSafeInteger, default: 0, select: false },
+    checkRevision: { type: Number, min: 0, validate: Number.isSafeInteger, default: 0, select: false },
+    nextCheckAt: { type: Date, select: false },
+    leaseToken: { type: String, select: false },
+    lockedUntil: { type: Date, select: false },
     verifiedAt: Date,
     expiresAt: Date,
     succeededAt: Date,
@@ -83,6 +112,8 @@ PaymentSchema.index(
 );
 PaymentSchema.index({ memberId: 1, createdAt: -1 });
 PaymentSchema.index({ orderId: 1, createdAt: -1 });
+PaymentSchema.index({ environment: 1, orderId: 1, active: 1 }, { unique: true, partialFilterExpression: { active: true } });
+PaymentSchema.index({ environment: 1, nextCheckAt: 1, lockedUntil: 1 });
 PaymentSchema.index({ reconciliationStatus: 1, updatedAt: 1 });
 
 export default PaymentSchema;

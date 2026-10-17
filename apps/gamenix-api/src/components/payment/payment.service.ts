@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Payment } from '../../libs/dto/payment/payment';
 import { PaymentRecord } from '../../libs/dto/payment/payment-record';
 import { PaymentEnvironment } from '../../libs/enums/payment.enum';
+import { hasVerifiedCapture } from './payment-verification';
 
 const PUBLIC_PAYMENT_FIELDS = {
     _id: 1, orderId: 1, shopId: 1, status: 1, environment: 1, currency: 1,
@@ -23,10 +24,14 @@ export class PaymentService {
             _id: new Types.ObjectId(paymentId),
             memberId: new Types.ObjectId(String(memberId)),
             environment: PaymentEnvironment.SANDBOX,
-        }).select(PUBLIC_PAYMENT_FIELDS).lean().exec();
+        }).select({ ...PUBLIC_PAYMENT_FIELDS, verification: 1, providerPaymentId: 1,
+            merchantId: 1, storeId: 1, channelId: 1, pgMerchantId: 1, requestFingerprint: 1,
+        }).lean().exec();
 
         // Deliberately identical for an unknown payment and another buyer's payment.
         if (!payment) throw new NotFoundException('Payment not found');
-        return payment;
+        // Explicit whitelist prevents internal verification facts from leaking through service callers too.
+        const visible = Object.fromEntries(Object.keys(PUBLIC_PAYMENT_FIELDS).map((key) => [key, payment[key]]));
+        return { ...visible, verifiedSuccess: hasVerifiedCapture(payment) } as unknown as Payment;
     }
 }

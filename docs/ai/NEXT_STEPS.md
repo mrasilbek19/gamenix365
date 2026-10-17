@@ -1,5 +1,16 @@
 # Next steps
 
+## Actual provider verification required after generic workflow — 2026-10-17
+
+The latest conditional approval selects PortOne V2 hosted checkout + PayPal sandbox + USD + one central test merchant. Generic backend and guarded frontend workflow are implemented, but the actual account/channel/TEST profile was unavailable. Default checkout remains disabled; flags alone cannot activate it. Do not repeat the settled USD/merchant/inventory decisions, install an SDK blindly, substitute another provider or begin Phase 7.
+
+1. Verify actual merchant/store/PayPal TEST channel/PG merchant/profile identity and USD cross-border buyer-country compatibility. Configure secrets privately after verification.
+2. Implement the official SDK adapter against PaymentProvider, including exact USD units, TEST identity, fixed trusted frontend return URL, signature/replay validation and provider retrieval. Prove permanent nonchargeability before releasing a closed failed/cancelled/expired attempt. Review index deployment; missing required unique indexes intentionally block creation.
+3. Execute genuine sandbox transactions and signed webhook delivery, delayed/lost events, timeouts and database/order reconciliation tests. Synthetic fake-provider/Mongo tests do not satisfy provider verification.
+4. Only after persisted actual verified capture is proven should Phase 7 add receipts/emails/notifications/refunds using private verification evidence, separate refund rules and durable deduplication. No automatic fulfillment, stock/points/refund effects.
+
+Existing order creation and PROCESS effects remain nontransactional and non-idempotent; no inventory reservation or repair ledger exists. Reporting may fail during a database outage and requires manual audit. See SANDBOX_PAYMENTS for implemented operations and exact limitations. Historical Phase 6 foundation-only notes below are superseded by this increment.
+
 ## Phase 6 foundation complete; checkout blocked — 2026-10-17
 
 See the pre-checkout [PAYMENT_READINESS.md](PAYMENT_READINESS.md) and implemented [SANDBOX_PAYMENTS.md](SANDBOX_PAYMENTS.md). South Korea, unchanged inventory timing, separate payment records and manual sandbox reconciliation are approved. The user confirmed no test account exists; their latest currency instruction, “or just keep $ as it is”, preserves USD prices/shipping/emails and supersedes the earlier KRW pricing proposal. No FX, repricing or order business-rule changes were made. Do not repeat those decisions or choose a provider from the Petora reference automatically.

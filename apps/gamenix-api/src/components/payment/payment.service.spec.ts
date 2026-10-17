@@ -1,4 +1,4 @@
-import { BadRequestException, INestApplication, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, INestApplication, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ApolloDriver } from '@nestjs/apollo';
 import { GraphQLModule, GraphQLSchemaHost } from '@nestjs/graphql';
 import { Test } from '@nestjs/testing';
@@ -9,6 +9,7 @@ import { AuthService } from '../auth/auth.service';
 import { PaymentResolver } from './payment.resolver';
 import { PaymentService } from './payment.service';
 import { paymentFixture } from './payment.fixture';
+import { PaymentWorkflowService } from './payment-workflow.service';
 
 jest.mock('apps/gamenix-api/src/libs/enums/common.enum',
     () => jest.requireActual('../../libs/enums/common.enum'), { virtual: true });
@@ -35,6 +36,8 @@ describe('PaymentService owner-only local status', () => {
         expect(query.select).toHaveBeenCalledWith({
             _id: 1, orderId: 1, shopId: 1, status: 1, environment: 1, currency: 1, amountMinor: 1,
             reconciliationStatus: 1, verifiedAt: 1, expiresAt: 1, createdAt: 1, updatedAt: 1,
+            verification: 1, providerPaymentId: 1, merchantId: 1, storeId: 1,
+            channelId: 1, pgMerchantId: 1, requestFingerprint: 1,
         });
     });
 
@@ -89,6 +92,9 @@ describe('Payment GraphQL authentication and privacy', () => {
             providers: [PaymentResolver, { provide: PaymentService, useValue: service }, { provide: AuthService, useValue: {
                 verifyToken: async (token: string) => token === 'owner' ? { _id: String(ownerId) }
                     : token === 'other' ? { _id: String(otherId) } : null,
+            } }, { provide: PaymentWorkflowService, useValue: {
+                availability: async () => ({ enabled: false, reason: 'SANDBOX_NOT_VERIFIED', buyerCountries: [] }),
+                createSession: async () => { throw new ServiceUnavailableException('Sandbox checkout is unavailable'); },
             } }],
         }).compile();
         app = module.createNestApplication();
@@ -119,13 +125,23 @@ describe('Payment GraphQL authentication and privacy', () => {
         expect(result.data).toBeNull();
     });
 
-    it('exposes no payment write operation, owner override or private payment fields', () => {
+    it('requires authentication for checkout availability and session creation', async () => {
+        const availability = '{ getTestCheckoutAvailability { enabled reason buyerCountries } }';
+        expect((await run(undefined, availability)).errors).toHaveLength(1);
+        expect((await run('owner', availability)).data.getTestCheckoutAvailability).toMatchObject({ enabled: false, reason: 'SANDBOX_NOT_VERIFIED' });
+        const checkout = 'mutation { createTestCheckoutSession(input: { orderId: "' + String(new Types.ObjectId())
+            + '", buyerCountry: "US", idempotencyKey: "synthetic-key-0001" }) { paymentId checkoutUrl } }';
+        expect((await run(undefined, checkout)).errors).toHaveLength(1);
+        expect((await run('owner', checkout)).errors[0].message).toBe('Sandbox checkout is unavailable');
+    });
+
+    it('exposes only guarded checkout/status operations with no owner override or private fields', () => {
         const queryFields = schema.getQueryType().getFields();
-        expect(Object.keys(queryFields)).toEqual(['getPaymentStatus']);
+        expect(Object.keys(queryFields).sort()).toEqual(['getPaymentStatus', 'getTestCheckoutAvailability']);
         expect(queryFields.getPaymentStatus.args.map((arg) => arg.name)).toEqual(['paymentId']);
-        expect(schema.getMutationType()).toBeUndefined();
+        expect(Object.keys(schema.getMutationType().getFields())).toEqual(['createTestCheckoutSession']);
         expect(Object.keys((schema.getType('Payment') as GraphQLObjectType).getFields())).toEqual([
-            '_id', 'orderId', 'shopId', 'status', 'environment', 'currency', 'amountMinor',
+            '_id', 'orderId', 'shopId', 'status', 'verifiedSuccess', 'environment', 'currency', 'amountMinor',
             'reconciliationStatus', 'verifiedAt', 'expiresAt', 'createdAt', 'updatedAt',
         ]);
     });

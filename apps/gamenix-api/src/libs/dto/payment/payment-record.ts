@@ -20,8 +20,23 @@ export interface PaymentOrderSnapshot {
     totalMinor: number;
 }
 
-/** Internal storage only; no client input or payment creation API exists yet. */
-export interface PaymentRecord extends Payment {
+export interface PaymentVerification {
+    version: 1;
+    providerPaymentId: string;
+    transactionId: string;
+    amountMinor: number;
+    currency: string;
+    merchantId: string;
+    storeId: string;
+    channelId: string;
+    pgMerchantId: string;
+    environment: 'SANDBOX';
+    bindingKey: string;
+    capturedAt: Date;
+}
+
+/** Internal storage only. Verification evidence is never a GraphQL input. */
+export interface PaymentRecord extends Omit<Payment, 'verifiedSuccess'> {
     memberId: Types.ObjectId;
     provider: string;
     merchantId: string;
@@ -39,6 +54,18 @@ export interface PaymentRecord extends Payment {
     failureDetail?: string;
     reconciliationReason?: string;
     reconciledAt?: Date;
+    buyerCountry?: string;
+    storeId?: string;
+    channelId?: string;
+    pgMerchantId?: string;
+    checkoutUrl?: string;
+    active?: boolean;
+    verification?: PaymentVerification;
+    checkAttempts?: number;
+    checkRevision?: number;
+    nextCheckAt?: Date;
+    leaseToken?: string;
+    lockedUntil?: Date;
 }
 
 /** Only allowlisted metadata, never raw webhook bodies or payment/card credentials. */
@@ -56,6 +83,9 @@ export interface PaymentEventRecord {
     nextAttemptAt?: Date;
     processedAt?: Date;
     failureCode?: string;
+    providerPaymentId?: string;
+    lockedUntil?: Date;
+    leaseToken?: string;
     createdAt: Date;
     updatedAt: Date;
 }

@@ -1,5 +1,12 @@
 # Architectural decisions
 
+## Conditional sandbox integration; provider-independent fallback — 2026-10-17
+
+- The new request conditionally approves PortOne V2 hosted checkout, PayPal sandbox, USD and one central Gamenix test merchant. Preserve each order's SHOP and all stock/points/fulfillment rules. Actual account/channel/TEST profile/USD cross-border compatibility is a prerequisite to a real adapter. No compatible account/configuration was available, so execute the explicitly authorized provider-independent fallback. No SDK, alternate provider or runtime simulator; default checkout/webhook/worker execution fails closed even if a flag is set.
+- Extend existing payments/paymentEvents/status/query. Persist exact server-owned USD snapshots, immutable identity/binding, one active attempt per order and idempotent key reuse; verify required indexes before creation. No browser price/status/provider inputs. Timeout keeps the claim uncertain; recovery never recreates sessions or cancels automatically.
+- Capture requires strict server retrieval checks and persisted matching evidence. Expose verifiedSuccess while retaining current status names; old SUCCEEDED/date fixtures alone are not proof. Keep original capture on stale/conflicting later results. Signed-event metadata queues retrieval, not fulfillment.
+- Reuse batch with bounded retries/expiring CAS leases. Reporting-only PROCESS-failure hook preserves all order effects/exceptions and marks payments REQUIRED where storage is available. No automatic compensation, receipts, notifications, emails or refunds in Phase 6. See SANDBOX_PAYMENTS for recovery gaps and the remaining account/adapter/end-to-end gate. Historical foundation-only entries below describe the earlier commit.
+
 ## Sandbox payment foundation and remaining gate — 2026-10-17
 
 - The user approved South Korea, unchanged inventory timing, separate payment records and manual sandbox reconciliation. Their later “or just keep $ as it is” retains USD catalog/shipping/email amounts; no native KRW migration or FX policy is authorized now. A future provider must support USD for the actual South Korean merchant/payment method. No test account exists, so provider/PG/channel/merchant compatibility is still unresolved.

@@ -110,6 +110,21 @@ describe('Order email success hooks', () => {
         expect(email.enqueueOrderEmail).not.toHaveBeenCalled();
     });
 
+    it.each(['stock', 'points', 'reporting database'])('reports %s failure without changing the original order effects or exception', async (failure) => {
+        const report = { reportOrderProcessingFailure: jest.fn(async () => {
+            if (failure === 'reporting database') throw new Error('Ledger unavailable');
+        }) };
+        service = new OrderService(orders, items, products, members, memberService, email, undefined, report as any);
+        if (failure === 'points') memberService.memberStatsEditor.mockResolvedValue(null);
+        else products.findOneAndUpdate.mockReturnValue(query(() => null));
+        await expect(service.updateOrder(buyerId as any, { _id: orderId as any, orderStatus: OrderStatus.PROCESS }))
+            .rejects.toThrow(failure === 'points' ? 'An active member is required' : 'Product unavailable or insufficient stock');
+        expect(targetOrder.orderStatus).toBe(OrderStatus.PROCESS);
+        expect(report.reportOrderProcessingFailure).toHaveBeenCalledWith(orderId);
+        expect(products.findOneAndUpdate).toHaveBeenCalledTimes(1);
+        expect(email.enqueueOrderEmail).not.toHaveBeenCalled();
+    });
+
     it('queues FINISHED without changing stock or points', async () => {
         targetOrder.orderStatus = OrderStatus.PROCESS;
         await service.updateOrder(buyerId as any, { _id: orderId as any, orderStatus: OrderStatus.FINISHED });

@@ -1,5 +1,13 @@
 # Frontend migration plan
 
+## Guarded sandbox checkout and payment polling — 2026-10-17
+
+Frontend commit b9823ff adds only the required flow to the existing /orders/process page and existing Apollo documents/client: backend availability check, future approved country selection, same-order/key session retry, allowlisted PortOne hosted redirect and owner-safe local payment-status polling. The actual provider is unconfigured, so ordinary order confirmation still collects no payment. No layout, SCSS, stock, points, order status buttons, provider SDK or dependencies changed.
+
+Return to /orders/process?paymentId=<local-payment-id>. Poll getPaymentStatus with no-cache and queryDeduplication=false, every three seconds for at most 40 nonoverlapping requests; owner changes/unmount suppress old results. Only backend verifiedSuccess together with SUCCEEDED may display confirmed payment. Browser callback flags and sessionStorage identifiers prove nothing. Session failure preserves the existing order and key; unknown createOrder outcomes still require My Orders inspection because that pre-existing operation is not server-idempotent.
+
+Files: apollo/client.ts, apollo/user/query.ts, apollo/user/mutation.ts, libs/payment.ts, pages/orders/process.tsx, scripts/test-basket.cjs and scripts/test-payments.cjs. Node 20.19.0 with Yarn: tsc --noEmit --incremental false and both scripts passed. These are offline component/polling fixtures, not real browser/provider checkout tests. Deploy the backend GraphQL changes first. Actual PortOne account/TEST profile/PayPal USD compatibility, SDK adapter and signed sandbox deliveries remain required before activation or Phase 7.
+
 ## SHOP username and shop name integration — 2026-10-15
 
 SHOP registration now has separate Username (memberNick) and Shop Name (shopName) inputs. Login still submits only memberNick/memberPassword. USER registration remains unchanged. The backend field is optional for older clients/accounts; the new SHOP signup UI requires a nonblank name and sends its trimmed value.

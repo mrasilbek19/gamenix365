@@ -1,5 +1,11 @@
 # Backend migration: Nestar → Gamenix
 
+## Provider-independent sandbox workflow; provider adapter still blocked — 2026-10-17
+
+Extended the existing payment foundation with trusted persisted-order USD snapshots, idempotent active attempts, strict verification evidence, guarded GraphQL session/availability operations, raw-body webhook/event boundary and batch reconciliation. Default provider is unconfigured and cannot be enabled by flags; no PortOne SDK, external provider call or actual provider signature integration exists. The conditionally approved account/PayPal TEST channel/USD profile remains unverified. getPaymentStatus now exposes verifiedSuccess only from persisted matching capture evidence.
+
+The approved reporting-only order-failure hook leaves stock/points/status behavior intact. Frontend retains its checkout and adds a disabled-by-default session path, same-order resume and owner-safe backend status polling. No Phase 7 work, data migration or live payment. See PAYMENT_READINESS, SANDBOX_PAYMENTS and the newest completion ledger entry; earlier foundation-only descriptions below are historical.
+
 ## Sandbox payment record foundation; checkout blocked — 2026-10-17
 
 After the readiness audit and user approval, added independent Payment/PaymentEvent persistence, sandbox-only environment values, explicit currency/integer amounts, immutable owner/order/shop and USD source snapshots, provider/idempotency/event identities, separate reconciliation metadata and an authenticated owner-only getPaymentStatus query. No payment creation/update API or provider execution exists. Current catalog/shipping/emails stay USD per the user's latest instruction; no currency migration, order business-rule change, stock/point effect or credential change occurred.

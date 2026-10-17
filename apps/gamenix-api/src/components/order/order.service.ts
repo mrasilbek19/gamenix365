@@ -15,6 +15,7 @@ import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
 import { OrderEmailService } from '../order-email/order-email.service';
 import { EmailDeliveryTemplate } from '../../libs/enums/email-delivery.enum';
+import { PaymentWorkflowService } from '../payment/payment-workflow.service';
 
 @Injectable()
 export class OrderService {
@@ -30,6 +31,7 @@ export class OrderService {
         private readonly memberService: MemberService,
         private readonly orderEmailService: OrderEmailService,
         @Optional() private readonly notificationService?: NotificationService,
+        @Optional() private readonly paymentWorkflow?: PaymentWorkflowService,
     ) { }
 
     public async createOrder(
@@ -213,34 +215,41 @@ export class OrderService {
         }
 
         // Processing an order deducts stock and gives the buyer one point.
-        const orderItems: OrderItem[] = await this.orderItemModel
-            .find({ orderId: orderId })
-            .exec();
-        if (!orderItems.length) throw new ConflictException('Order contains no items');
-
-        for (const item of orderItems) {
-            const product: Product = await this.productModel
-                .findOneAndUpdate(
-                    {
-                        _id: item.productId,
-                        memberId: targetOrder.shopId,
-                        productStatus: ProductStatus.PROCESS,
-                        deletedAt: null,
-                        productLeftCount: { $gte: item.itemQuantity },
-                    },
-                    { $inc: { productLeftCount: -item.itemQuantity } },
-                    { new: true },
-                )
+        try {
+            const orderItems: OrderItem[] = await this.orderItemModel
+                .find({ orderId: orderId })
                 .exec();
-            if (!product) throw new ConflictException('Product unavailable or insufficient stock');
-        }
+            if (!orderItems.length) throw new ConflictException('Order contains no items');
 
-        const updatedMember: Member = await this.memberService.memberStatsEditor({
-            _id: memberId,
-            targetKey: 'memberPoints',
-            modifier: 1,
-        });
-        if (!updatedMember) throw new ForbiddenException('An active member is required');
+            for (const item of orderItems) {
+                const product: Product = await this.productModel
+                    .findOneAndUpdate(
+                        {
+                            _id: item.productId,
+                            memberId: targetOrder.shopId,
+                            productStatus: ProductStatus.PROCESS,
+                            deletedAt: null,
+                            productLeftCount: { $gte: item.itemQuantity },
+                        },
+                        { $inc: { productLeftCount: -item.itemQuantity } },
+                        { new: true },
+                    )
+                    .exec();
+                if (!product) throw new ConflictException('Product unavailable or insufficient stock');
+            }
+
+            const updatedMember: Member = await this.memberService.memberStatsEditor({
+                _id: memberId,
+                targetKey: 'memberPoints',
+                modifier: 1,
+            });
+            if (!updatedMember) throw new ForbiddenException('An active member is required');
+        } catch (error) {
+            // Reporting only. Preserve original stock/points effects, order status and exception.
+            try { await this.paymentWorkflow?.reportOrderProcessingFailure(new Types.ObjectId(String(orderId))); }
+            catch { /* A ledger outage must not replace the original order failure. */ }
+            throw error;
+        }
 
         await this.orderEmailService.enqueueOrderEmail(memberId, orderId, EmailDeliveryTemplate.ORDER_STATUS_CHANGED, orderStatus);
         await this.notificationService?.notifyOrderStatusChanged(

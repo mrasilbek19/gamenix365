@@ -9,6 +9,8 @@ import ProductSchema from 'apps/gamenix-api/src/schemas/Product.model';
 import MemberSchema from 'apps/gamenix-api/src/schemas/Member.model';
 import { OrderEmailModule } from '../../gamenix-api/src/components/order-email/order-email.module';
 import { OrderEmailWorker } from './order-email.worker';
+import { PaymentCoreModule } from '../../gamenix-api/src/components/payment/payment-core.module';
+import { PaymentWorker } from './payment.worker';
 
 @Module({
   imports: [
@@ -16,10 +18,11 @@ import { OrderEmailWorker } from './order-email.worker';
     DatabaseModule,
     ScheduleModule.forRoot(),
     OrderEmailModule,
+    PaymentCoreModule,
     MongooseModule.forFeature([{ name: 'Product', schema: ProductSchema }]),
     MongooseModule.forFeature([{ name: "Member", schema: MemberSchema }]),
   ],
   controllers: [BatchController],
-  providers: [BatchService, OrderEmailWorker],
+  providers: [BatchService, OrderEmailWorker, PaymentWorker],
 })
 export class BatchModule { }
