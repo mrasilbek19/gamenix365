@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { Connection, createConnection, Model } from 'mongoose';
 import { Member } from '../../libs/dto/member/member';
 import { MemberStatus } from '../../libs/enums/member.enum';
@@ -13,11 +14,12 @@ describeMongo('Member email MongoDB integration', () => {
     let members: Model<Member>;
     let service: MemberService;
     let sequence = 0;
+    const databaseName = `gx_member_test_${randomBytes(8).toString('hex')}`;
     const credentials = () => ({ memberNick: `player${++sequence}`, memberPhone: `010${sequence}`, memberPassword: 'secret123' });
 
     beforeAll(async () => {
         connection = await createConnection(testUri, {
-            dbName: `gamenix_member_email_test_${Date.now()}_${process.pid}`,
+            dbName: databaseName,
             serverSelectionTimeoutMS: 5000,
         }).asPromise();
         members = connection.model<Member>('Member', MemberSchema);
@@ -31,7 +33,10 @@ describeMongo('Member email MongoDB integration', () => {
 
     afterAll(async () => {
         if (!connection) return;
-        try { await connection.dropDatabase(); }
+        try {
+            if (connection.name !== databaseName || !connection.name.startsWith('gx_member_test_')) throw new Error('Refusing non-test database cleanup');
+            await connection.dropDatabase();
+        }
         finally { await connection.close(); }
     });
 
