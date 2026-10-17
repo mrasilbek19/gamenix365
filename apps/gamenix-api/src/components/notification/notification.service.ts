@@ -9,6 +9,7 @@ import { Direction } from '../../libs/enums/common.enum';
 import { OrderStatus } from '../../libs/enums/order.enum';
 import { EventStatus } from '../../libs/enums/event.enum';
 import { MemberStatus } from '../../libs/enums/member.enum';
+import { SocketGateway } from '../../socket/socket.gateway';
 import { Member } from '../../libs/dto/member/member';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class NotificationService {
 	constructor(
 		@InjectModel('Notification') private readonly notificationModel: Model<Notification>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
+		private readonly socketGateway: SocketGateway,
 	) {}
 
 	/** Internal business-service hook. Notification failures never fail the operation that caused them. */
@@ -28,11 +30,16 @@ export class NotificationService {
 
 			const referenceId = input.orderId ?? input.eventId ?? input.articleId ?? input.productId ?? input.receiverId;
 			const deduplicationKey = `${input.notificationType}:${referenceId}:${input.receiverId}${deduplicationSuffix ? `:${deduplicationSuffix}` : ''}`;
-			await this.notificationModel.create({
+			const created = await this.notificationModel.create({
 				...input,
 				notificationStatus: NotificationStatus.WAIT,
 				deduplicationKey,
 			});
+			try {
+				this.socketGateway.sendNotification(input.receiverId, created);
+			} catch {
+				this.logger.warn('Notification saved; socket delivery failed');
+			}
 			return true;
 		} catch (error) {
 			// Duplicate delivery is expected when a caller retries after an uncertain result.

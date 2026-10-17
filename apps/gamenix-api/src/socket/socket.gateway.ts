@@ -5,17 +5,21 @@ import * as WebSocket from 'ws';
 import { AuthService } from '../components/auth/auth.service';
 import { Member } from '../libs/dto/member/member';
 import * as url from 'url';
+import { Types } from 'mongoose';
+import { Notification } from '../libs/dto/notification/notification';
+
+type SocketMember = Pick<Member, '_id' | 'memberNick' | 'memberImage' | 'memberType'>;
 
 interface MessagePayload {
   event: string;
   text: string;
-  memberData: Member;
+  memberData: SocketMember;
 }
 
 interface InfoPayload {
   event: string;
   totalClients: number;
-  memberData: Member;
+  memberData: SocketMember;
   action: string;
 }
 
@@ -23,7 +27,7 @@ interface InfoPayload {
 export class SocketGateway implements OnGatewayInit {
   private logger: Logger = new Logger('SocketEventsGateway');
   private summaryClient: number = 0;
-  private clientsAuthMap = new Map<WebSocket, Member>();
+  private clientsAuthMap = new Map<WebSocket, Member & { exp?: number }>();
   private messagesList: MessagePayload[] = [];
 
   constructor(private authService: AuthService) { }
@@ -39,9 +43,9 @@ export class SocketGateway implements OnGatewayInit {
     try {
       const parseUrl = url.parse(req.url, true);
       const { token } = parseUrl.query;
-      console.log('token:', token);
 
-      return await this.authService.verifyToken(token as string);
+      if (typeof token !== 'string') return null;
+      return await this.authService.verifyToken(token);
     } catch (err) {
       return null;
     }
@@ -58,7 +62,7 @@ export class SocketGateway implements OnGatewayInit {
     const infoMsg: InfoPayload = {
       event: 'info',
       totalClients: this.summaryClient,
-      memberData: authMember,
+      memberData: this.publicMember(authMember),
       action: 'joined',
     };
     this.emitMessage(infoMsg);
@@ -76,7 +80,7 @@ export class SocketGateway implements OnGatewayInit {
     const infoMsg: InfoPayload = {
       event: 'info',
       totalClients: this.summaryClient,
-      memberData: authMember,
+      memberData: this.publicMember(authMember),
       action: 'left',
     };
     this.broadcastMessage(client, infoMsg);
@@ -85,7 +89,7 @@ export class SocketGateway implements OnGatewayInit {
   @SubscribeMessage('message')
   public async handleMessage(client: WebSocket, payload: string): Promise<void> {
     const authMember = this.clientsAuthMap.get(client);
-    const newMessage: MessagePayload = { event: 'message', text: payload, memberData: authMember };
+    const newMessage: MessagePayload = { event: 'message', text: payload, memberData: this.publicMember(authMember) };
 
     const clientNick: string = authMember?.memberNick ?? 'Guest';
     this.logger.verbose(`NEW MESSAGE [${clientNick}]: ${payload}`);
@@ -108,6 +112,26 @@ export class SocketGateway implements OnGatewayInit {
     this.server.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify(message));
+      }
+    });
+  }
+
+  private publicMember(member: Member): SocketMember {
+    if (!member) return null;
+    return { _id: member._id, memberNick: member.memberNick, memberImage: member.memberImage, memberType: member.memberType };
+  }
+
+  public sendNotification(receiverId: Types.ObjectId, notification: Notification) {
+    const payload = JSON.stringify({ event: 'notification', notification });
+    this.clientsAuthMap.forEach((member, client) => {
+      if (member && Number.isFinite(member.exp) && member.exp * 1000 > Date.now() && String(member._id) === String(receiverId) && client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(payload, (error) => {
+            if (error) this.logger.warn('Notification socket delivery failed');
+          });
+        } catch {
+          this.logger.warn('Notification socket delivery failed');
+        }
       }
     });
   }

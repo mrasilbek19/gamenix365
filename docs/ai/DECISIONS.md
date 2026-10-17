@@ -35,7 +35,7 @@ Follow the user's simplify request: copy only missing Petora functionality into 
 - Scope inbox reads/counts/updates to the authenticated recipient. Inbox supports page/limit (maximum 100), status/group/date filters and allowlisted createdAt/updatedAt sort. `updateNotification` changes status only; `markAllNotificationsRead` only changes the caller's WAIT rows.
 - Generate unique keys server-side from notification type, reference, recipient and (for order transitions) target status. Duplicate writes are ignored. Notification persistence is best-effort and must not reverse successful business operations.
 - Initial triggers: pending SHOP → ACTIVE/BLOCK; pending Event → PROCESS/PAUSED (approval/rejection); completed order/item creation; successful order status transition; successful email verification. Orders/events point to their existing documents. Payment notices wait for a payment system.
-- Do not add private notification delivery to the current WebSocket gateway. The current gateway accepts guests and broadcasts chat, presence and history globally, and logs token query values. Review socket auth/privacy separately before private real-time delivery.
+- 2026-10-17 Petora module adaptation supersedes the earlier private-socket hold after privacy review: persist notifications first, then send only to matching authenticated open recipient sockets with unexpired JWT claims. Remove token logging and limit public chat/presence/history member data to _id/memberNick/memberImage/memberType. Guests remain public-chat participants only; inbox queries recover missed private events. Keep existing JWT policy and deployment-level query-token/log precautions.
 
 ## Member email and verification preparation — 2026-10-13
 

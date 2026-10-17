@@ -9,6 +9,8 @@ import { Test } from '@nestjs/testing';
 import { GraphQLObjectType } from 'graphql';
 import { NotificationGroup, NotificationStatus, NotificationType } from '../../libs/enums/notification.enum';
 import { OrderStatus } from '../../libs/enums/order.enum';
+import { SocketGateway } from '../../socket/socket.gateway';
+import * as WebSocket from 'ws';
 import NotificationSchema from '../../schemas/Notification.model';
 
 jest.mock('apps/gamenix-api/src/libs/enums/common.enum',
@@ -24,6 +26,7 @@ describe('NotificationService', () => {
 	let notifications: any;
 	let members: any;
 	let service: NotificationService;
+	let socket: any;
 
 	beforeEach(() => {
 		notifications = {
@@ -34,7 +37,8 @@ describe('NotificationService', () => {
 			updateMany: jest.fn(() => exec({ modifiedCount: 2 })),
 		};
 		members = { exists: jest.fn(() => exec({ _id: recipientId })) };
-		service = new NotificationService(notifications, members);
+		socket = { sendNotification: jest.fn() };
+		service = new NotificationService(notifications, members, socket);
 	});
 
 	it('preserves WAIT/READ and installs recipient, status/date and unique dedupe indexes', () => {
@@ -64,6 +68,17 @@ describe('NotificationService', () => {
 		}));
 	});
 
+	it('sends the persisted notification only after saving and survives socket failure', async () => {
+		const created = { _id: orderId, notificationStatus: NotificationStatus.WAIT };
+		notifications.create.mockResolvedValueOnce(created);
+		socket.sendNotification.mockImplementationOnce(() => { throw new Error('socket offline'); });
+		await expect(service.createNotification({
+			notificationType: NotificationType.ORDER_CREATED, notificationGroup: NotificationGroup.ORDER,
+			notificationTitle: 'New order', receiverId: recipientId, orderId,
+		})).resolves.toBe(true);
+		expect(socket.sendNotification).toHaveBeenCalledWith(recipientId, created);
+	});
+
 	it('ignores duplicate delivery and missing recipients without throwing', async () => {
 		const duplicate = Object.assign(new Error('duplicate'), { code: 11000 });
 		notifications.create.mockRejectedValueOnce(duplicate);
@@ -83,6 +98,7 @@ describe('NotificationService', () => {
 			receiverId: otherMemberId,
 		})).resolves.toBe(false);
 		expect(notifications.create).toHaveBeenCalledTimes(1);
+		expect(socket.sendNotification).not.toHaveBeenCalled();
 	});
 
 	it('treats notification storage outages as a failed side effect', async () => {
@@ -181,5 +197,52 @@ describe('NotificationService', () => {
 		} finally {
 			await app.close();
 		}
+	});
+});
+
+
+describe('Petora recipient-scoped socket delivery', () => {
+	const recipient = { _id: new Types.ObjectId(), memberNick: 'recipient', memberImage: '', exp: Math.floor(Date.now() / 1000) + 60 };
+	const client = (readyState: number = WebSocket.OPEN) => ({ readyState, send: jest.fn() });
+
+	it('delivers to all open recipient tabs, excluding other users, guests and expired sessions', () => {
+		const gateway = new SocketGateway({} as any);
+		const first = client(), second = client(), other = client(), guest = client(), expired = client(), closed = client(WebSocket.CLOSED);
+		(gateway as any).clientsAuthMap = new Map([
+			[first, recipient], [second, recipient], [other, { ...recipient, _id: new Types.ObjectId() }],
+			[guest, null], [expired, { ...recipient, exp: 1 }], [closed, recipient],
+		]);
+		const notification = { _id: new Types.ObjectId(), notificationTitle: 'Private order' };
+		gateway.sendNotification(recipient._id, notification as any);
+		for (const tab of [first, second]) expect(JSON.parse(tab.send.mock.calls[0][0])).toMatchObject({ event: 'notification', notification: { notificationTitle: 'Private order' } });
+		for (const tab of [other, guest, expired, closed]) expect(tab.send).not.toHaveBeenCalled();
+		expect((gateway as any).messagesList).toEqual([]);
+	});
+
+	it('continues delivery when one recipient connection fails', () => {
+		const gateway = new SocketGateway({} as any);
+		const first = client(), second = client();
+		first.send.mockImplementation(() => { throw new Error('closed during send'); });
+		(gateway as any).clientsAuthMap = new Map([[first, recipient], [second, recipient]]);
+		expect(() => gateway.sendNotification(recipient._id, {} as any)).not.toThrow();
+		expect(second.send).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps credentials and personal details out of public presence, chat and history', async () => {
+		const gateway = new SocketGateway({ verifyToken: jest.fn().mockResolvedValue({
+			...recipient, memberEmail: 'private@example.test', memberPhone: 'private-phone', memberAddress: 'private-address', memberPassword: 'hash', accessToken: 'secret',
+		}) } as any);
+		const tab = client();
+		gateway.server = { clients: new Set([tab]) } as any;
+		const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+		try {
+			await gateway.handleConnection(tab as any, { url: '/?token=private-token' });
+			await gateway.handleMessage(tab as any, 'Hello');
+			gateway.handleDisconnect(tab as any);
+			const payload = JSON.stringify(tab.send.mock.calls) + JSON.stringify((gateway as any).messagesList);
+			for (const privateValue of ['private@example', 'private-phone', 'private-address', 'hash', 'secret', 'private-token']) expect(payload).not.toContain(privateValue);
+			expect(JSON.stringify(log.mock.calls)).not.toContain('private-token');
+			expect((gateway as any).clientsAuthMap.size).toBe(0);
+		} finally { log.mockRestore(); }
 	});
 });

@@ -1,5 +1,11 @@
 # Completed tasks and evidence ledger
 
+## Petora private notification delivery adapted — 2026-10-17
+
+Copied Petora's NotificationModule/Service → exported SocketGateway sendNotification wiring into the existing modules. Persist first; unique-key duplicates emit nothing; socket failures never reverse notification persistence or marketplace operations. WAIT/READ, owner-scoped GraphQL and all trigger recipients remain unchanged. Private events reach only matching authenticated open recipient tabs with unexpired JWT claims, never public chat/history. Inbox queries remain the recovery path after reconnect or missed delivery.
+
+Privacy inspection before implementation found token query logging, full decoded-member public broadcasts and no post-connect token-expiry check. Removed token logging, allowlisted public identity (_id/memberNick/memberImage/memberType), and enforce expiry for private delivery. Guest/public chat remains available. Existing query-token transport and proxy access-log handling remain deployment considerations; existing JWT revocation/status policy is unchanged. Validation: 14 notification/socket tests pass (extended existing test file); API/batch TypeScript and both Nest builds pass. No new collection/dependency/worker.
+
 ## Petora review module copied and adapted — 2026-10-17
 
 Copied Petora's ReviewModule/Resolver/Service, three DTO files, enum and Review schema. Adapted targets to PRODUCT/SHOP, current ACTIVE authors/shops and PROCESS products; no pet/service/agent logic or new rating fields on existing collections. Preserved Petora's public paginated ratings/distribution, owner edits and ADMIN moderation/removal of DELETE reviews. Added atomic unique author/group/target index, integer stars, bounded input and private-author-field exclusion. No purchase-verification claim, points, stock, order or authentication change.
