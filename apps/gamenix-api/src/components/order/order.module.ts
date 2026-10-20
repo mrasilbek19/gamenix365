@@ -10,7 +10,6 @@ import { AuthModule } from '../auth/auth.module';
 import { MemberModule } from '../member/member.module';
 import { NotificationModule } from '../notification/notification.module';
 import { OrderEmailModule } from '../order-email/order-email.module';
-import { PaymentModule } from '../payment/payment.module';
 
 @Module({
   imports: [
@@ -27,7 +26,6 @@ import { PaymentModule } from '../payment/payment.module';
     MemberModule,
     NotificationModule,
     OrderEmailModule,
-    PaymentModule,
   ],
   providers: [OrderResolver, OrderService],
   exports: [OrderService],

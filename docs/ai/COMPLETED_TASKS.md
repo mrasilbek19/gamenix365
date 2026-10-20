@@ -1,5 +1,13 @@
 # Completed tasks and evidence ledger
 
+## Payment replaced with Petora's two-file implementation — 2026-10-20
+
+Read the actual local Petora payment/order sources and Git history. Recreated only payment.module.ts and portone.service.ts while preserving the user's preexisting payment-folder deletions. Removed foundation/workflow files introduced in 2e8ce8f/4284f30 and expanded in 5438a22/64e1ec8: Payment/PaymentEvent schemas, DTOs/enums, snapshot/workflow/verification helpers, GraphQL resolver, webhook, batch worker and obsolete tests. Removed their registration and reporting-only order hook; original order stock/points/status statements remain unchanged.
+
+PortoneService follows Petora getPayment/verifyPaid with existing Nest HttpModule, fixed provider URL and sanitized failures. Necessary adaptations enforce nonproduction SANDBOX configuration, TEST store/channel, exact USD integer cents, PAID/capture evidence and member/order binding. No charge/session/refund method or order coupling is exposed. Petora lacks durable duplicate/replay protections; this read-only integration cannot provide checkout and remains test-only. Removed getPaymentStatus/getTestCheckoutAvailability/createTestCheckoutSession; frontend source is untouched. No dependency, environment, live provider or database change.
+
+Validation: 44 temporary offline provider-stub checks, real PaymentModule DI and focused TypeScript compilation pass under Node 20.19.0. Actual provider/account compatibility, real sandbox transactions and durable charge/replay behavior remain unverified; no production-readiness claim.
+
 ## Direct Petora payment verification methods copied — 2026-10-17
 
 Copied Petora's actual verifyPaid(paymentId, expectedAmount) implementation into existing PortoneService. getPayment now returns the provider payment object as Petora does; verifyPaid requires PAID and the exact server-calculated USD integer-cent total. Retained TEST identity, capture, binding and sanitized-error checks. Existing record normalization is named getPaymentFacts and its existing workflow caller/tests were adapted. No new files, module, collection, dependency, checkout operation, order rule or payment-state transition. The compatible-account gate remains unchanged; no real provider call/payment or automatic cancellation/refund.

@@ -1,174 +1,117 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+	BadRequestException,
+	Injectable,
+	Logger,
+	OnModuleInit,
+	ServiceUnavailableException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { PaymentStatus } from '../../libs/enums/payment.enum';
 
 const PORTONE_API_BASE = 'https://api.portone.io';
 
-export const PAYMENT_CHECK_LIMIT = 5;
-export const PAYMENT_LEASE_MS = 5 * 60 * 1000;
-
-/** An elapsed deadline is uncertainty; it never cancels an external financial operation. */
-export async function providerDeadline<T>(operation: () => Promise<T>, timeoutMs = 65000): Promise<T> {
-    let timer: ReturnType<typeof setTimeout>;
-    try {
-        return await Promise.race([Promise.resolve().then(operation), new Promise<T>((_resolve, reject) => {
-            timer = setTimeout(() => reject(new Error('Provider deadline exceeded')), timeoutMs);
-        })]);
-    } finally { clearTimeout(timer); }
-}
-
-/** Must come from an account-verified server adapter, never environment flags or clients. */
-export interface SandboxIdentity {
-    provider: string;
-    merchantId: string;
-    storeId: string;
-    channelId: string;
-    pgMerchantId: string;
-    environment: 'SANDBOX';
-    currency: 'USD';
-    checkoutHost: string;
-    buyerCountries: string[];
-}
-
-export interface ProviderPaymentFacts {
-    providerPaymentId: string;
-    status: PaymentStatus;
-    amountMinor: number;
-    currency: string;
-    merchantId: string;
-    storeId: string;
-    channelId: string;
-    pgMerchantId: string;
-    environment: string;
-    bindingKey: string;
-    captured: boolean;
-    /** True only when this provider payment can never capture again; session expiry alone is insufficient. */
-    checkoutClosed: boolean;
-    transactionId?: string;
-    capturedAt?: Date;
-}
-
-export interface ProviderEvent {
-    eventId: string;
-    eventType: string;
-    providerPaymentId: string;
-    storeId: string;
-}
-
-/** The subset of PortOne's payment object this server actually reads. */
+/** The subset of Petora's PortOne payment used for TEST-only verification. */
 export interface PortonePayment {
-    id: string;
-    status: string;
-    merchantId?: string;
-    storeId?: string;
-    version?: string;
-    transactionId?: string;
-    paidAt?: string;
-    currency?: string;
-    amount?: { total?: number; paid?: number; cancelled?: number };
-    customData?: string;
-    channel?: { type?: string; id?: string; pgMerchantId?: string; pgProvider?: string };
+	id: string;
+	status: string;
+	storeId?: string;
+	transactionId?: string;
+	paidAt?: string;
+	currency?: string;
+	amount?: { total?: number; paid?: number; cancelled?: number };
+	customData?: string;
+	channel?: { type?: string; id?: string; pgProvider?: string };
 }
 
-/** Adapted from Petora's PortOne V2 REST client; no charge/cancel endpoint is exposed. */
 @Injectable()
-export class PortoneService {
-    constructor(private readonly http: HttpService, private readonly config: ConfigService) { }
+export class PortoneService implements OnModuleInit {
+	private readonly logger = new Logger(PortoneService.name);
 
-    // Merchant/channel/hosted-profile compatibility is still unverified. Flags cannot open checkout.
-    public async verifiedSandbox(): Promise<SandboxIdentity | null> { return null; }
-    public async createSession(_input: {
-        paymentId: string; providerPaymentId: string; orderId: string; bindingKey: string; amountMinor: number;
-        currency: 'USD'; buyerCountry: string; idempotencyKey: string;
-    }): Promise<{ sessionId: string; url: string; expiresAt: Date }> {
-        throw new ServiceUnavailableException('Sandbox account is not verified');
-    }
-    public async verifyWebhook(_body: Buffer, _headers: Record<string, unknown>): Promise<ProviderEvent> { throw new ServiceUnavailableException('Sandbox account is not verified'); }
+	constructor(private readonly http: HttpService) {}
 
-    public async getPayment(paymentId: string): Promise<PortonePayment> {
-        const apiSecret = this.config.get<string>('PORTONE_V2_API_SECRET');
-        const merchantId = this.config.get<string>('PORTONE_MERCHANT_ID');
-        const storeId = this.config.get<string>('PORTONE_STORE_ID');
-        const channelId = this.config.get<string>('PORTONE_TEST_CHANNEL_ID');
-        const pgMerchantId = this.config.get<string>('PORTONE_TEST_PG_MERCHANT_ID');
-        if (this.config.get('NODE_ENV') === 'production' || this.config.get('PORTONE_ENVIRONMENT') !== 'SANDBOX' ||
-            ![apiSecret, merchantId, storeId, channelId, pgMerchantId].every((value) => typeof value === 'string' && value.trim().length > 0)) {
-            throw new ServiceUnavailableException('PortOne sandbox lookup is not configured');
-        }
-        if (!/^gamenix-test-[a-f0-9]{24}$/.test(paymentId)) throw new BadRequestException('Invalid payment reference');
+	private get apiSecret(): string {
+		return process.env.PORTONE_V2_API_SECRET ?? '';
+	}
 
-        let payment: PortonePayment;
-        try {
-            const { data } = await this.http.axiosRef.get<PortonePayment>(
-                `${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`,
-                {
-                    headers: { Authorization: `PortOne ${apiSecret}` },
-                    params: { storeId }, timeout: 60000, maxRedirects: 0, maxContentLength: 65536,
-                },
-            );
-            payment = data;
-        } catch (err) {
-            if (err?.response?.status === 404) throw new BadRequestException('Payment not found');
-            // Axios errors may contain the Authorization header and full provider response.
-            throw new ServiceUnavailableException('Payment lookup failed');
-        }
-        if (!payment || payment.id !== paymentId || payment.version !== 'V2' || payment.merchantId !== merchantId ||
-            payment.storeId !== storeId || payment.channel?.type !== 'TEST' || payment.channel.id !== channelId ||
-            payment.channel.pgMerchantId !== pgMerchantId || payment.currency !== 'USD' ||
-            !Number.isSafeInteger(payment.amount?.total) || payment.amount.total <= 0) {
-            throw new BadRequestException('Payment identity, environment or currency mismatch');
-        }
-        let bindingKey: string;
-        try { bindingKey = JSON.parse(payment.customData).bindingKey; }
-        catch { throw new BadRequestException('Payment order binding is missing'); }
-        if (typeof bindingKey !== 'string' || !/^[a-f0-9]{64}$/.test(bindingKey)) throw new BadRequestException('Invalid payment order binding');
+	public get configured(): boolean {
+		return process.env.NODE_ENV !== 'production' && process.env.PORTONE_ENVIRONMENT === 'SANDBOX' &&
+			[this.apiSecret, process.env.PORTONE_STORE_ID, process.env.PORTONE_TEST_CHANNEL_ID]
+				.every((value) => typeof value === 'string' && value.trim().length > 0);
+	}
 
-        if (payment.status === 'PAID' && (payment.amount.paid !== payment.amount.total || payment.amount.cancelled !== 0 ||
-            typeof payment.transactionId !== 'string' || !payment.transactionId || payment.transactionId.length > 200 ||
-            typeof payment.paidAt !== 'string' || !Number.isFinite(new Date(payment.paidAt).getTime()))) {
-            throw new BadRequestException('Payment capture evidence is incomplete');
-        }
-        return payment;
-    }
+	public onModuleInit(): void {
+		if (this.configured) return;
+		this.logger.warn('PortOne TEST verification is not configured; payment checkout is unavailable.');
+	}
 
-    /** Petora verification flow; expectedAmount is the server-calculated USD total in cents. */
-    public async verifyPaid(paymentId: string, expectedAmount: number): Promise<PortonePayment> {
-        if (!Number.isSafeInteger(expectedAmount) || expectedAmount <= 0) throw new BadRequestException('Invalid expected payment amount');
-        const payment = await this.getPayment(paymentId);
+	public async getPayment(paymentId: string): Promise<PortonePayment> {
+		if (!this.configured) {
+			throw new ServiceUnavailableException('PortOne TEST verification is not configured');
+		}
+		if (typeof paymentId !== 'string' || !paymentId.trim() || paymentId.length > 200) {
+			throw new BadRequestException('Invalid payment reference');
+		}
 
-        if (payment.status !== 'PAID') {
-            throw new BadRequestException(`Payment is not completed (status: ${payment.status})`);
-        }
-        if (payment.currency !== 'USD') {
-            throw new BadRequestException(`Unsupported payment currency: ${payment.currency}`);
-        }
-        if (payment.amount?.total !== expectedAmount) {
-            throw new BadRequestException('Paid amount does not match the order total');
-        }
+		let payment: PortonePayment;
+		try {
+			const { data } = await this.http.axiosRef.get<PortonePayment>(
+				`${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`,
+				{
+					headers: { Authorization: `PortOne ${this.apiSecret}` },
+					params: { storeId: process.env.PORTONE_STORE_ID },
+					timeout: 10_000,
+					maxRedirects: 0,
+					maxContentLength: 65536,
+				},
+			);
+			payment = data;
+		} catch (err) {
+			if (err?.response?.status === 404) {
+				throw new BadRequestException('Payment not found');
+			}
+			// Axios errors can contain credentials and provider response data.
+			throw new ServiceUnavailableException('Payment lookup failed');
+		}
+		if (!payment || payment.id !== paymentId || payment.storeId !== process.env.PORTONE_STORE_ID ||
+			payment.channel?.type !== 'TEST' || payment.channel.id !== process.env.PORTONE_TEST_CHANNEL_ID ||
+			payment.currency !== 'USD') {
+			throw new BadRequestException('Payment identity, TEST channel or currency mismatch');
+		}
+		return payment;
+	}
 
-        return payment;
-    }
+	/** Petora's paid lookup, adapted to server-owned Gamenix USD cents and order/member bindings. */
+	public async verifyPaid(
+		paymentId: string,
+		expectedAmount: number,
+		memberId: string,
+		orderId: string,
+	): Promise<PortonePayment> {
+		if (!Number.isSafeInteger(expectedAmount) || expectedAmount <= 0 || !memberId || !orderId) {
+			throw new BadRequestException('Invalid expected payment details');
+		}
+		const payment = await this.getPayment(paymentId);
 
-    /** Preserve the existing Gamenix record format without exposing raw provider data. */
-    public async getPaymentFacts(paymentId: string): Promise<ProviderPaymentFacts> {
-        const payment = await this.getPayment(paymentId);
-        const bindingKey = JSON.parse(payment.customData).bindingKey;
-        let status = PaymentStatus.UNKNOWN;
-        switch (payment.status) {
-            case 'READY': case 'PENDING': status = PaymentStatus.PENDING; break;
-            case 'PAID': status = PaymentStatus.SUCCEEDED; break;
-            case 'FAILED': status = PaymentStatus.FAILED; break;
-        }
-        const captured = status === PaymentStatus.SUCCEEDED;
-        const capturedAt = captured ? new Date(payment.paidAt) : undefined;
-        // Workflow compares these facts to the persisted immutable order snapshot before any status write.
-        return {
-            providerPaymentId: payment.id, status, amountMinor: payment.amount.total, currency: payment.currency,
-            merchantId: payment.merchantId, storeId: payment.storeId, channelId: payment.channel.id,
-            pgMerchantId: payment.channel.pgMerchantId, environment: 'SANDBOX', bindingKey, captured,
-            // A failed attempt or hosted-link expiry does not prove this payment ID cannot capture later.
-            checkoutClosed: false, ...(captured ? { transactionId: payment.transactionId, capturedAt } : {}),
-        };
-    }
+		if (payment.status !== 'PAID') {
+			throw new BadRequestException(`Payment is not completed (status: ${payment.status})`);
+		}
+		if (payment.amount?.total !== expectedAmount || payment.amount.paid !== expectedAmount ||
+			payment.amount.cancelled !== 0) {
+			throw new BadRequestException('Paid amount does not match the order total');
+		}
+		if (typeof payment.transactionId !== 'string' || !payment.transactionId ||
+			typeof payment.paidAt !== 'string' || !Number.isFinite(new Date(payment.paidAt).getTime())) {
+			throw new BadRequestException('Payment capture evidence is incomplete');
+		}
+
+		let binding: { memberId?: string; orderId?: string };
+		try {
+			binding = payment.customData ? JSON.parse(payment.customData) : null;
+		} catch {
+			throw new BadRequestException('Payment order binding is missing');
+		}
+		if (binding?.memberId !== memberId || binding?.orderId !== orderId) {
+			throw new BadRequestException('Payment does not belong to this member and order');
+		}
+		return payment;
+	}
 }

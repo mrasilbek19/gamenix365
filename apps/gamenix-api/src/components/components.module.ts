@@ -12,8 +12,6 @@ import { OrderModule } from './order/order.module';
 import { EmailVerificationModule } from './email-verification/email-verification.module';
 import { NotificationModule } from './notification/notification.module';
 import { ReviewModule } from './review/review.module';
-import { PaymentResolver } from './payment/payment.resolver';
-import { PaymentWebhookController } from './payment/payment-webhook.controller';
 import { PaymentModule } from './payment/payment.module';
 
 @Module({
@@ -33,7 +31,5 @@ import { PaymentModule } from './payment/payment.module';
     PaymentModule,
     ReviewModule,
   ],
-  controllers: [PaymentWebhookController],
-  providers: [PaymentResolver],
 })
 export class ComponentsModule { }
