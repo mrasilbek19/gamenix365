@@ -8,14 +8,14 @@ import { ViewModule } from '../view/view.module';
 import { LikeModule } from '../like/like.module';
 import FollowSchema from '../../schemas/Follow.model';
 import { NotificationModule } from '../notification/notification.module';
-import AuthTokenSchema from '../../schemas/AuthToken.model';
+import PasswordResetSchema from '../../schemas/PasswordReset.model';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: "Member", schema: MemberSchema }]),
     MongooseModule.forFeature([{ name: 'Follow', schema: FollowSchema }]),
-    MongooseModule.forFeature([{ name: 'AuthToken', schema: AuthTokenSchema }]),
+    MongooseModule.forFeature([{ name: 'PasswordReset', schema: PasswordResetSchema }]),
     AuthModule,
     ViewModule,
     LikeModule,

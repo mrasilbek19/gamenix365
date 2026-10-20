@@ -1,5 +1,7 @@
 # Order confirmation and status emails
 
+> Historical implementation, superseded on 2026-10-20 by the Petora simplification. The custom system described below was removed; use the latest COMPLETED_TASKS and NEXT_STEPS for current behavior.
+
 Implemented on 2026-10-17 using the existing MailService and gamenix-batch application. There is no client-facing mail creation endpoint. OrderService queues mail only after successful order/item creation, after PROCESS stock/points work succeeds, or after a successful FINISHED transition. Same-status requests and failed operations do not queue additional events. Existing separate writes, stock, points, ownership, single-shop restrictions and PAUSE → PROCESS → FINISHED rules are preserved.
 
 ## Templates and data

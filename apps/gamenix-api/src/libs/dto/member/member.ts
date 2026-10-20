@@ -35,15 +35,6 @@ export class Member {
 
     memberPassword?: string;
 
-    // Private persistence fields, intentionally without @Field decorators.
-    memberEmailVersion?: number;
-    emailVerificationRequestedAt?: Date;
-    emailVerificationWindowStart?: Date;
-    emailVerificationRequests?: number;
-    passwordResetRequestedAt?: Date;
-    passwordResetWindowStart?: Date;
-    passwordResetRequests?: number;
-
     @Field(() => String, { nullable: true })
     memberFullName?: string;
 

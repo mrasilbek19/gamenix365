@@ -9,7 +9,6 @@ import { FollowModule } from './follow/follow.module';
 import { BoardArticleModule } from './board-article/board-article.module';
 import { EventModule } from './event/event.module';
 import { OrderModule } from './order/order.module';
-import { EmailVerificationModule } from './email-verification/email-verification.module';
 import { NotificationModule } from './notification/notification.module';
 import { ReviewModule } from './review/review.module';
 import { PaymentModule } from './payment/payment.module';
@@ -26,7 +25,6 @@ import { PaymentModule } from './payment/payment.module';
     FollowModule,
     EventModule,
     OrderModule,
-    EmailVerificationModule,
     NotificationModule,
     PaymentModule,
     ReviewModule,

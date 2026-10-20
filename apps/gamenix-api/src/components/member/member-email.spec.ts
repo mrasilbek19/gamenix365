@@ -92,7 +92,7 @@ describe('Member email service behavior', () => {
         };
         auth = { hashPassword: jest.fn(async () => 'hash'), createToken: jest.fn(async () => 'token'),
             comparePassword: jest.fn(async () => true) };
-        service = new MemberService(members, {} as any, auth, {} as any, {} as any, {} as any, {} as any);
+        service = new MemberService(members, {} as any, auth, {} as any, {} as any, { deleteMany: () => ({ exec: async () => ({}) }) } as any, {} as any);
     });
 
     it.each([MemberType.USER, MemberType.SHOP])('keeps optional-email %s signup and shop approval behavior', async (memberType) => {
@@ -161,7 +161,7 @@ describe('Member email service behavior', () => {
     it('resets verification when explicitly clearing or resubmitting email', async () => {
         for (const memberEmail of [null, 'owner@example.com']) {
             await service.updateMember(ownerId as any, { _id: ownerId as any, memberEmail });
-            expect(members.findOneAndUpdate.mock.calls.at(-1)[1]).toEqual({ _id: ownerId, memberEmail, memberEmailVerified: false, $inc: { memberEmailVersion: 1 } });
+            expect(members.findOneAndUpdate.mock.calls.at(-1)[1]).toEqual({ _id: ownerId, memberEmail, memberEmailVerified: false });
         }
     });
 

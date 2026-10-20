@@ -9,7 +9,7 @@ import MemberSchema from '../../schemas/Member.model';
 import { AuthModule } from '../auth/auth.module';
 import { MemberModule } from '../member/member.module';
 import { NotificationModule } from '../notification/notification.module';
-import { OrderEmailModule } from '../order-email/order-email.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -25,7 +25,7 @@ import { OrderEmailModule } from '../order-email/order-email.module';
     AuthModule,
     MemberModule,
     NotificationModule,
-    OrderEmailModule,
+    MailModule,
   ],
   providers: [OrderResolver, OrderService],
   exports: [OrderService],

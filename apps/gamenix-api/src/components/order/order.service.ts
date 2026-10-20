@@ -13,8 +13,7 @@ import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
-import { OrderEmailService } from '../order-email/order-email.service';
-import { EmailDeliveryTemplate } from '../../libs/enums/email-delivery.enum';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class OrderService {
@@ -28,7 +27,7 @@ export class OrderService {
         @InjectModel('Member')
         private readonly memberModel: Model<Member>,
         private readonly memberService: MemberService,
-        private readonly orderEmailService: OrderEmailService,
+        private readonly mailService: MailService,
         @Optional() private readonly notificationService?: NotificationService,
     ) { }
 
@@ -97,10 +96,24 @@ export class OrderService {
         });
 
         await this.recordOrderItem(result._id, orderItems);
-        await this.orderEmailService.enqueueOrderEmail(memberId, result._id, EmailDeliveryTemplate.ORDER_CREATED, result.orderStatus);
         await this.notificationService?.notifyOrderCreated(
             new Types.ObjectId(String(result._id)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(shopId)),
         );
+
+        try {
+            const recipient = await this.memberModel.findById(memberId).select('+memberEmail').exec();
+            if (recipient?.memberEmail) {
+                const lines = orderItems.map((item) => ({
+                    name: products.find((product) => String(product._id) === String(item.productId)).productName,
+                    quantity: item.itemQuantity,
+                    price: item.itemPrice,
+                }));
+                void this.mailService.sendOrderInvoice(recipient.memberEmail, result, lines);
+            }
+        } catch {
+            // Optional email delivery must not fail an order that is already recorded.
+        }
+
         return result;
     }
 
@@ -205,7 +218,6 @@ export class OrderService {
 
         // Finishing an order only changes its status.
         if (orderStatus === OrderStatus.FINISHED) {
-            await this.orderEmailService.enqueueOrderEmail(memberId, orderId, EmailDeliveryTemplate.ORDER_STATUS_CHANGED, orderStatus);
             await this.notificationService?.notifyOrderStatusChanged(
                 new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
             );
@@ -242,7 +254,6 @@ export class OrderService {
         });
         if (!updatedMember) throw new ForbiddenException('An active member is required');
 
-        await this.orderEmailService.enqueueOrderEmail(memberId, orderId, EmailDeliveryTemplate.ORDER_STATUS_CHANGED, orderStatus);
         await this.notificationService?.notifyOrderStatusChanged(
             new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
         );

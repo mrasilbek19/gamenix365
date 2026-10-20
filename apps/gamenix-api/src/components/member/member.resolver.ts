@@ -1,4 +1,4 @@
-import { Args, Context, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { MemberService } from './member.service';
 import { BadRequestException, InternalServerErrorException, UseGuards } from '@nestjs/common';
 import { AgentsInquiry, LoginInput, MemberInput, MembersInquiry, PasswordResetInput, PasswordResetRequestInput, PasswordResetVerifyInput } from '../../libs/dto/member/member.input';
@@ -16,7 +16,6 @@ import { Message } from '../../libs/enums/common.enum';
 import { GraphQLUpload, FileUpload } from 'graphql-upload';
 import { createWriteStream } from 'fs';
 import { mkdir } from 'fs/promises';
-import { Request } from 'express';
 
 @Resolver(() => Member)
 export class MemberResolver {
@@ -50,18 +49,18 @@ export class MemberResolver {
     }
 
     @Mutation(() => Boolean)
-    public async requestPasswordReset(@Args('input') input: PasswordResetRequestInput, @Context('req') request: Request): Promise<boolean> {
-        return await this.memberService.requestPasswordReset(input, request.ip ?? request.socket?.remoteAddress);
+    public async requestPasswordReset(@Args('input') input: PasswordResetRequestInput): Promise<boolean> {
+        return await this.memberService.requestPasswordReset(input);
     }
 
     @Mutation(() => String)
-    public async verifyPasswordResetCode(@Args('input') input: PasswordResetVerifyInput, @Context('req') request: Request): Promise<string> {
-        return await this.memberService.verifyPasswordResetCode(input, request.ip ?? request.socket?.remoteAddress);
+    public async verifyPasswordResetCode(@Args('input') input: PasswordResetVerifyInput): Promise<string> {
+        return await this.memberService.verifyPasswordResetCode(input);
     }
 
     @Mutation(() => Boolean)
-    public async resetPassword(@Args('input') input: PasswordResetInput, @Context('req') request: Request): Promise<boolean> {
-        return await this.memberService.resetPassword(input, request.ip ?? request.socket?.remoteAddress);
+    public async resetPassword(@Args('input') input: PasswordResetInput): Promise<boolean> {
+        return await this.memberService.resetPassword(input);
     }
 
     @UseGuards(AuthGuard)

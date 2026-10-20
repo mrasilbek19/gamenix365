@@ -1,5 +1,7 @@
 # SMTP email verification
 
+> Historical implementation, superseded on 2026-10-20 by the Petora simplification. The custom system described below was removed; use the latest COMPLETED_TASKS and NEXT_STEPS for current behavior.
+
 Implemented in the existing NestJS API architecture. Username/password login, SHOP approval, private email fields and optional-email legacy accounts remain unchanged. Password recovery is not implemented.
 
 ## Runtime and environment

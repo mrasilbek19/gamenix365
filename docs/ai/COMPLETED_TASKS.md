@@ -1,5 +1,17 @@
 # Completed tasks and evidence ledger
 
+## Mail and password recovery copied from Petora — 2026-10-20
+
+Copied actual Petora mail.module/service/templates, PasswordReset schema/type and the three MemberService/Resolver recovery methods. Adapted names to memberNick, current password rules, private optional memberEmail, existing PENDING SHOP eligibility and Gamenix USD order fields. Mail files keep source tabs; inserted member/order code follows adjacent four-space indentation. Preserved JWT/login/shopName/approval, email privacy and original order pricing/single-shop/status/stock/points statements.
+
+Removed the custom email-verification/shared AuthToken system from 39931bd, durable order-email queue/worker from 8fae64c and expanded recovery machinery from 1e5d377, including superseded supporting DTOs/enums/config/tests. The copied PasswordReset collection replaces authTokens; no live records or indexes were deleted/migrated. Standalone verification is absent in Petora: requestEmailVerification/verifyEmail are removed, while private optional memberEmail/memberEmailVerified fields stay compatible. Recovery now accepts the matching optional account email without requiring the removed verifier.
+
+Necessary safety adaptations stay inside copied methods/model: bcrypt code/password storage, SHA-256 reset tokens, expiry, atomic guess/code/token claims, exact current email/stored-password binding and best-effort invalidation on profile changes. SMTP failure invalidates the new grant and retains the same public response as a missing account. No transaction, rate-limit map, shared token framework or worker. Reset claim/password write remain separate: a write failure can consume a grant and requires a fresh request; Petora has no request throttling.
+
+Order creation sends an optional direct invoice/summary as Petora does. It uses escaped product/address text, stored USD line prices/shipping/total and states that order status does not confirm payment. Optional recipient lookup/delivery failure does not fail checkout. There are no status emails, durable retries or capture transport. SMTP uses SMTP_HOST/PORT/USER/PASS and MAIL_FROM; environment files remain untouched. Existing three password-reset GraphQL inputs/results are preserved; no frontend or real SMTP action.
+
+Validation: 199 focused tests pass across five existing member/order suites; four opt-in member-email MongoDB cases skip without their explicit test URI. API TypeScript and diff whitespace checks pass under Node 20.19.0. Real SMTP and concurrent database behavior were not exercised.
+
 ## Payment replaced with Petora's two-file implementation — 2026-10-20
 
 Read the actual local Petora payment/order sources and Git history. Recreated only payment.module.ts and portone.service.ts while preserving the user's preexisting payment-folder deletions. Removed foundation/workflow files introduced in 2e8ce8f/4284f30 and expanded in 5438a22/64e1ec8: Payment/PaymentEvent schemas, DTOs/enums, snapshot/workflow/verification helpers, GraphQL resolver, webhook, batch worker and obsolete tests. Removed their registration and reporting-only order hook; original order stock/points/status statements remain unchanged.
