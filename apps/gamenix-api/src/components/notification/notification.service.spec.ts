@@ -8,7 +8,6 @@ import { ApolloDriver } from '@nestjs/apollo';
 import { Test } from '@nestjs/testing';
 import { GraphQLObjectType } from 'graphql';
 import { NotificationGroup, NotificationStatus, NotificationType } from '../../libs/enums/notification.enum';
-import { OrderStatus } from '../../libs/enums/order.enum';
 import { SocketGateway } from '../../socket/socket.gateway';
 import * as WebSocket from 'ws';
 import NotificationSchema from '../../schemas/Notification.model';
@@ -22,9 +21,7 @@ describe('NotificationService', () => {
 	const recipientId = new Types.ObjectId();
 	const otherMemberId = new Types.ObjectId();
 	const orderId = new Types.ObjectId();
-	const eventId = new Types.ObjectId();
 	let notifications: any;
-	let members: any;
 	let service: NotificationService;
 	let socket: any;
 
@@ -36,68 +33,57 @@ describe('NotificationService', () => {
 			findOneAndUpdate: jest.fn(() => exec({ _id: orderId })),
 			updateMany: jest.fn(() => exec({ modifiedCount: 2 })),
 		};
-		members = { exists: jest.fn(() => exec({ _id: recipientId })) };
 		socket = { sendNotification: jest.fn() };
-		service = new NotificationService(notifications, members, socket);
+		service = new NotificationService(notifications, socket);
 	});
 
-	it('preserves WAIT/READ and installs recipient, status/date and unique dedupe indexes', () => {
+	it('preserves WAIT/READ and recipient/status/date indexes', () => {
 		expect(NotificationSchema.path('notificationStatus').options.default).toBe(NotificationStatus.WAIT);
 		expect(NotificationSchema.path('notificationStatus').options.enum).toEqual(NotificationStatus);
 		const indexes = NotificationSchema.indexes();
 		expect(indexes.map(([fields]) => fields)).toEqual(expect.arrayContaining([
 			{ receiverId: 1, createdAt: -1 },
 			{ receiverId: 1, notificationStatus: 1, createdAt: -1 },
-			{ deduplicationKey: 1 },
 		]));
-		expect(indexes.find(([fields]) => 'deduplicationKey' in fields)?.[1]).toMatchObject({ unique: true });
 	});
 
-	it('creates server-only records with WAIT status and a deterministic server key', async () => {
-		await service.createNotification({
+	it('persists the server notification and then sends it to its recipient', async () => {
+		const input = {
 			notificationType: NotificationType.ORDER_CREATED,
 			notificationGroup: NotificationGroup.ORDER,
 			notificationTitle: 'New order',
 			receiverId: recipientId,
 			orderId,
-		});
+		};
+		await expect(service.createNotification(input)).resolves.toBe(true);
 
-		expect(notifications.create).toHaveBeenCalledWith(expect.objectContaining({
-			notificationStatus: NotificationStatus.WAIT,
-			deduplicationKey: `ORDER_CREATED:${orderId}:${recipientId}`,
-		}));
+		expect(notifications.create).toHaveBeenCalledWith(input);
+		expect(socket.sendNotification).toHaveBeenCalledWith(recipientId, {});
+		expect(notifications.create.mock.invocationCallOrder[0]).toBeLessThan(socket.sendNotification.mock.invocationCallOrder[0]);
 	});
 
-	it('sends the persisted notification only after saving and survives socket failure', async () => {
+	it('keeps notification delivery failure from rejecting the business operation', async () => {
 		const created = { _id: orderId, notificationStatus: NotificationStatus.WAIT };
 		notifications.create.mockResolvedValueOnce(created);
 		socket.sendNotification.mockImplementationOnce(() => { throw new Error('socket offline'); });
 		await expect(service.createNotification({
 			notificationType: NotificationType.ORDER_CREATED, notificationGroup: NotificationGroup.ORDER,
 			notificationTitle: 'New order', receiverId: recipientId, orderId,
-		})).resolves.toBe(true);
+		})).resolves.toBe(false);
 		expect(socket.sendNotification).toHaveBeenCalledWith(recipientId, created);
 	});
 
-	it('ignores duplicate delivery and missing recipients without throwing', async () => {
-		const duplicate = Object.assign(new Error('duplicate'), { code: 11000 });
-		notifications.create.mockRejectedValueOnce(duplicate);
+	it('does not notify a member about their own action', async () => {
 		await expect(service.createNotification({
 			notificationType: NotificationType.ORDER_CREATED,
 			notificationGroup: NotificationGroup.ORDER,
 			notificationTitle: 'New order',
 			receiverId: recipientId,
+			authorId: recipientId,
 			orderId,
 		})).resolves.toBe(false);
 
-		members.exists.mockReturnValueOnce(exec(null));
-		await expect(service.createNotification({
-			notificationType: NotificationType.EMAIL_VERIFIED,
-			notificationGroup: NotificationGroup.ACCOUNT,
-			notificationTitle: 'Email verified',
-			receiverId: otherMemberId,
-		})).resolves.toBe(false);
-		expect(notifications.create).toHaveBeenCalledTimes(1);
+		expect(notifications.create).not.toHaveBeenCalled();
 		expect(socket.sendNotification).not.toHaveBeenCalled();
 	});
 
@@ -159,21 +145,6 @@ describe('NotificationService', () => {
 			{ receiverId: recipientId, notificationStatus: NotificationStatus.WAIT },
 			{ $set: { notificationStatus: NotificationStatus.READ } },
 		);
-	});
-
-	it('routes each supported trigger to the intended member and reference', async () => {
-		const create = jest.spyOn(service, 'createNotification').mockResolvedValue(true);
-		await service.notifyOrderCreated(orderId, otherMemberId, recipientId);
-		await service.notifyOrderStatusChanged(orderId, otherMemberId, recipientId, OrderStatus.PROCESS);
-		await service.notifyShopModeration(recipientId, true);
-		await service.notifyEventModeration(eventId, recipientId, false);
-		await service.notifyEmailVerified(recipientId);
-
-		expect(create).toHaveBeenNthCalledWith(1, expect.objectContaining({ receiverId: recipientId, authorId: otherMemberId, orderId }));
-		expect(create).toHaveBeenNthCalledWith(2, expect.objectContaining({ receiverId: recipientId, authorId: otherMemberId, orderId }), OrderStatus.PROCESS);
-		expect(create).toHaveBeenNthCalledWith(3, expect.objectContaining({ receiverId: recipientId, notificationType: NotificationType.SHOP_APPROVED }));
-		expect(create).toHaveBeenNthCalledWith(4, expect.objectContaining({ receiverId: recipientId, eventId, notificationType: NotificationType.EVENT_REJECTED }));
-		expect(create).toHaveBeenNthCalledWith(5, expect.objectContaining({ receiverId: recipientId, notificationType: NotificationType.EMAIL_VERIFIED }));
 	});
 
 	it('exposes only the authenticated inbox operations in GraphQL', async () => {

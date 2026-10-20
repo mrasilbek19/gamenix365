@@ -14,6 +14,7 @@ import { shapeIntoMongoObjectId } from '../../libs/config';
 import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationGroup, NotificationType } from '../../libs/enums/notification.enum';
 
 @Injectable()
 export class OrderService {
@@ -96,9 +97,12 @@ export class OrderService {
         });
 
         await this.recordOrderItem(result._id, orderItems);
-        await this.notificationService?.notifyOrderCreated(
-            new Types.ObjectId(String(result._id)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(shopId)),
-        );
+        await this.notificationService?.createNotification({
+            notificationType: NotificationType.ORDER_CREATED, notificationGroup: NotificationGroup.ORDER,
+            notificationTitle: 'New order received', notificationDesc: 'A customer placed an order with your shop.',
+            authorId: new Types.ObjectId(String(memberId)), receiverId: new Types.ObjectId(String(shopId)),
+            orderId: new Types.ObjectId(String(result._id)),
+        });
 
         try {
             const recipient = await this.memberModel.findById(memberId).select('+memberEmail').exec();
@@ -218,9 +222,11 @@ export class OrderService {
 
         // Finishing an order only changes its status.
         if (orderStatus === OrderStatus.FINISHED) {
-            await this.notificationService?.notifyOrderStatusChanged(
-                new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
-            );
+            await this.notificationService?.createNotification({
+                notificationType: NotificationType.ORDER_STATUS_CHANGED, notificationGroup: NotificationGroup.ORDER,
+                notificationTitle: 'Order status changed', notificationDesc: `The customer changed the order status to ${orderStatus}.`,
+                authorId: new Types.ObjectId(String(memberId)), receiverId: new Types.ObjectId(String(targetOrder.shopId)), orderId,
+            });
             return result;
         }
 
@@ -254,9 +260,11 @@ export class OrderService {
         });
         if (!updatedMember) throw new ForbiddenException('An active member is required');
 
-        await this.notificationService?.notifyOrderStatusChanged(
-            new Types.ObjectId(String(orderId)), new Types.ObjectId(String(memberId)), new Types.ObjectId(String(targetOrder.shopId)), orderStatus,
-        );
+        await this.notificationService?.createNotification({
+            notificationType: NotificationType.ORDER_STATUS_CHANGED, notificationGroup: NotificationGroup.ORDER,
+            notificationTitle: 'Order status changed', notificationDesc: `The customer changed the order status to ${orderStatus}.`,
+            authorId: new Types.ObjectId(String(memberId)), receiverId: new Types.ObjectId(String(targetOrder.shopId)), orderId,
+        });
 
         return result;
     }

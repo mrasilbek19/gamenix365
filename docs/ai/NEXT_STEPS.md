@@ -1,5 +1,13 @@
 # Next steps
 
+## Current state after Petora simplification — 2026-10-20
+
+Use the latest COMPLETED_TASKS entry. The historical implementation plans below no longer authorize restoring removed architecture. Petora lacks standalone email verification, status-email delivery and payment reconciliation; do not invent replacements. SMTP uses SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and MAIL_FROM directly, with no capture transport or durable retries. Password recovery retains its three existing GraphQL operations and accepts the matching optional account email without requiring the now-absent verifier.
+
+Payment remains a read-only nonproduction TEST/USD service; no checkout, charge, refund, payment ledger, duplicate-charge guarantee or payment/order success coupling is implemented. Actual provider/account compatibility and real SMTP/provider delivery were not exercised. Preserve the user's existing order stock/points/status behavior, including its separate-write limitations.
+
+Removed GraphQL operations: requestEmailVerification, verifyEmail, getPaymentStatus, getTestCheckoutAvailability and createTestCheckoutSession. Frontend source is untouched; clients still calling these removed operations need a separately scoped compatibility update. No live data/index cleanup or migration ran; preexisting retired collections/documents/indexes are left in place.
+
 ## Petora password recovery copied; existing features retained — 2026-10-17
 
 Forgot/reset password is now implemented in the existing Member resolver/service and MailService using authTokens. Do not recreate it. See the newest COMPLETED_TASKS entry for the three GraphQL operations, limits, verified-email requirement and executed tests. Frontend integration and real SMTP mailbox delivery were not performed. Existing JWT/session behavior remains unchanged. No notification/payment/order/event/community rewrite was made; payment checkout and payment-confirmation emails still require the actual compatible sandbox account/channel/profile and trusted provider verification. Earlier notes describing password recovery as unimplemented are historical.

@@ -59,19 +59,11 @@ const NotificationSchema = new Schema(
 			type: Schema.Types.ObjectId,
 			ref: 'Event',
 		},
-		deduplicationKey: {
-			type: String,
-			required: true,
-		},
 	},
 	{ timestamps: true, collection: 'notifications' },
 );
 
 NotificationSchema.index({ receiverId: 1, createdAt: -1 });
 NotificationSchema.index({ receiverId: 1, notificationStatus: 1, createdAt: -1 });
-NotificationSchema.index(
-	{ deduplicationKey: 1 },
-	{ unique: true, partialFilterExpression: { deduplicationKey: { $type: 'string' } } },
-);
 
 export default NotificationSchema;

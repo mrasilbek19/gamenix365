@@ -1,5 +1,7 @@
 # Phase 6 payment-readiness decision report
 
+> Historical implementation, superseded on 2026-10-20 by the Petora simplification. The custom system described below was removed; use the latest COMPLETED_TASKS and NEXT_STEPS for current behavior.
+
 Date: 2026-10-17. Status: **Petora PortOne REST lookup adapted; actual provider checkout remains disabled**.
 
 Latest approval conditionally selects PortOne V2 hosted checkout, PayPal sandbox, USD and one central Gamenix test merchant, preserving each order's SHOP. That supersedes the earlier undecided provider/merchant arrangement. Actual account/channel/profile compatibility must still be verified. The user explicitly authorized implementing and testing only provider-independent components if that verification is unavailable. No payment configuration variable names were present in the backend/frontend environment files or process environment at inspection; values were neither displayed nor changed. There is no account evidence to verify.

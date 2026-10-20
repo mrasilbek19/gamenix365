@@ -1,5 +1,7 @@
 # Frontend migration plan
 
+> Backend compatibility change, 2026-10-20: the Petora simplification removes requestEmailVerification, verifyEmail, getPaymentStatus, getTestCheckoutAvailability and createTestCheckoutSession. Frontend source was not changed. Earlier checkout/verification contracts below are historical.
+
 ## Guarded sandbox checkout and payment polling — 2026-10-17
 
 Frontend commit b9823ff adds only the required flow to the existing /orders/process page and existing Apollo documents/client: backend availability check, future approved country selection, same-order/key session retry, allowlisted PortOne hosted redirect and owner-safe local payment-status polling. The actual provider is unconfigured, so ordinary order confirmation still collects no payment. No layout, SCSS, stock, points, order status buttons, provider SDK or dependencies changed.

@@ -1,5 +1,7 @@
 # Guarded sandbox payment workflow
 
+> Historical implementation, superseded on 2026-10-20 by the Petora simplification. The custom system described below was removed; use the latest COMPLETED_TASKS and NEXT_STEPS for current behavior.
+
 Date: 2026-10-17. **Provider-independent implementation only. Actual checkout is disabled; Phase 6 provider verification and Phase 7 remain blocked.** Read [PAYMENT_READINESS.md](PAYMENT_READINESS.md).
 
 ## Account gate and runtime configuration

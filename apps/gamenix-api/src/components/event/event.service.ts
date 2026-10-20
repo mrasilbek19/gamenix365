@@ -12,6 +12,7 @@ import { EventStatus, EventType } from '../../libs/enums/event.enum';
 import { ParticipantStatus } from '../../libs/enums/participant.enum';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { Direction } from '../../libs/enums/common.enum';
+import { NotificationGroup, NotificationType } from '../../libs/enums/notification.enum';
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { NotificationService } from '../notification/notification.service';
 
@@ -444,11 +445,14 @@ export class EventService {
             });
             if (byAdmin && eventBeforeUpdate.eventStatus === EventStatus.PENDING &&
                 (result.eventStatus === EventStatus.PROCESS || result.eventStatus === EventStatus.PAUSED)) {
-                await this.notificationService?.notifyEventModeration(
-                    new Types.ObjectId(String(eventBeforeUpdate._id)),
-                    new Types.ObjectId(String(eventBeforeUpdate.eventOrganizer)),
-                    result.eventStatus === EventStatus.PROCESS,
-                );
+                await this.notificationService?.createNotification({
+                    notificationType: result.eventStatus === EventStatus.PROCESS ? NotificationType.EVENT_APPROVED : NotificationType.EVENT_REJECTED,
+                    notificationGroup: NotificationGroup.EVENT,
+                    notificationTitle: result.eventStatus === EventStatus.PROCESS ? 'Event approved' : 'Event rejected',
+                    notificationDesc: result.eventStatus === EventStatus.PROCESS ? 'Your event has been approved.' : 'Your event was rejected.',
+                    receiverId: new Types.ObjectId(String(eventBeforeUpdate.eventOrganizer)),
+                    eventId: new Types.ObjectId(String(eventBeforeUpdate._id)),
+                });
             }
             return result;
         } finally {

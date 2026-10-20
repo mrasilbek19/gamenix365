@@ -1,5 +1,21 @@
 # Completed tasks and evidence ledger
 
+## Notifications copied from Petora; final combined validation — 2026-10-20
+
+Copied actual Petora NotificationModule/Service/Resolver and adapted direct payloads in existing shop/order/event services. Preserved recipient-scoped GraphQL operations, Gamenix WAIT/READ, date filters, references and private authenticated socket delivery. Removed recipient Member-model lookup, five wrapper methods and deterministic deduplication fields/index declarations introduced in e411aa1. Original notification schema fields and 4cb96d3 socket privacy remain. Repeated events may now create repeated notifications as in Petora; no live index/data changes. The retired unique dedup index is partial to string keys, so new records without that field do not collide.
+
+Existing notification tests were trimmed/adapted, not replaced with a new test framework: 13 pass, including foreign-owner rejection, inbox date filters, actual GraphQL schema and recipient/guest/expiry/public socket privacy. Independent diff review confirms original order business statements match pre-infrastructure ea135db apart from mail/notification side effects. Login/JWT/guards, shopName/approval, catalog, event lifecycle and community functionality remain intact. No unrelated work, frontend source, dependency, environment value or application data changed. Deletion origins were verified against specific feature commits and historical handoffs; no files with uncertain ownership were deleted.
+
+Final validation under installed Node 20.19.0:
+
+- npm test -- --runInBand --silent: 245 pass across nine suites; four opt-in member-email MongoDB cases skip without their explicit URI.
+- Both app TypeScript checks with --noEmit --incremental false: pass.
+- npm run build and npx nest build gamenix-batch: pass.
+- Actual API/batch module DI and GraphQL schema generate offline: 28 queries/42 mutations, required existing contracts present and retired payment/verification operations absent. Batch retains its original product/shop ranking scheduler; removed infrastructure models are unregistered.
+- 44 temporary payment-stub checks and whitespace checks pass. No test scripts added to the repository, real provider call, real SMTP, live database/index action or deployment.
+
+Petora has no standalone email-verification, order-status email, signed-webhook or reconciliation implementation to copy. Those custom systems are removed; remaining payment lookup is TEST-only without a checkout or durable duplicate/replay guarantee. Existing reset request throttling is also absent in Petora; token/password writes remain separate. Old authTokens/emailDeliveries/payments/paymentEvents data is left untouched and unprocessed. The four handoffs and retired feature-document banners now mark earlier architecture/contracts as historical.
+
 ## Mail and password recovery copied from Petora — 2026-10-20
 
 Copied actual Petora mail.module/service/templates, PasswordReset schema/type and the three MemberService/Resolver recovery methods. Adapted names to memberNick, current password rules, private optional memberEmail, existing PENDING SHOP eligibility and Gamenix USD order fields. Mail files keep source tabs; inserted member/order code follows adjacent four-space indentation. Preserved JWT/login/shopName/approval, email privacy and original order pricing/single-shop/status/stock/points statements.

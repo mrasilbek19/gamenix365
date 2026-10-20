@@ -19,6 +19,7 @@ import { lookupAuthMemberLiked } from '../../libs/config';
 import { isEmail } from 'class-validator';
 import { NotificationService } from '../notification/notification.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationGroup, NotificationType } from '../../libs/enums/notification.enum';
 import { createHash, randomBytes, randomInt } from 'crypto';
 
 const RESET_CODE_TTL_MINUTES = 3;
@@ -432,11 +433,19 @@ export class MemberService {
         if (previousMember?.memberType === MemberType.SHOP && result.memberType === MemberType.SHOP &&
             previousMember.memberStatus === MemberStatus.PENDING &&
             result.memberStatus === MemberStatus.ACTIVE) {
-            await this.notificationService?.notifyShopModeration(new Types.ObjectId(String(result._id)), true);
+            await this.notificationService?.createNotification({
+                notificationType: NotificationType.SHOP_APPROVED, notificationGroup: NotificationGroup.SHOP,
+                notificationTitle: 'Shop approved', notificationDesc: 'Your shop can now use the marketplace.',
+                receiverId: new Types.ObjectId(String(result._id)),
+            });
         } else if (previousMember?.memberType === MemberType.SHOP && result.memberType === MemberType.SHOP &&
             previousMember.memberStatus === MemberStatus.PENDING &&
             result.memberStatus === MemberStatus.BLOCK) {
-            await this.notificationService?.notifyShopModeration(new Types.ObjectId(String(result._id)), false);
+            await this.notificationService?.createNotification({
+                notificationType: NotificationType.SHOP_REJECTED, notificationGroup: NotificationGroup.SHOP,
+                notificationTitle: 'Shop application rejected', notificationDesc: 'Your shop application was rejected.',
+                receiverId: new Types.ObjectId(String(result._id)),
+            });
         }
 
         return result;

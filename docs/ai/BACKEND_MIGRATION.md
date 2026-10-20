@@ -1,5 +1,11 @@
 # Backend migration: Nestar → Gamenix
 
+## Simple Petora replacements — 2026-10-20
+
+The latest user request supersedes the earlier custom payment/email architecture below. Payment now contains only Petora-derived PaymentModule and PortoneService for nonproduction TEST/USD read verification; checkout, payment GraphQL operations, ledgers, webhooks and reconciliation workers are removed. Orders retain their existing API, single-shop, pricing, status, stock and points behavior.
+
+MailModule/Service/Templates and password recovery now follow Petora directly. Removed standalone email verification, authTokens, durable order-email delivery and mail workers. Optional buyer order summaries send directly through SMTP; there are no status emails, capture transport or retries. Petora has no standalone email verification. Private memberEmail/memberEmailVerified fields remain compatible, without a verifier. Notifications use Petora's service/resolver/module and direct business payloads with existing recipient-only GraphQL/socket access. See the newest COMPLETED_TASKS entry for changes and validation; older records below are historical.
+
 ## Petora modules adapted — 2026-10-17
 
 Added Petora PRODUCT/SHOP reviews and copied recipient-only notification socket delivery after privacy fixes. Existing mail, USD order emails/retries and authentication remain. PaymentModule now provides concrete PortoneService; generic provider wiring and the extra core module were removed after replacing every caller. TEST/USD REST lookup is adapted, while account/profile verification, hosted checkout and actual signature handling remain blocked. Existing payment/order protections are preserved. See COMPLETED_TASKS for validation; earlier entries below are historical.

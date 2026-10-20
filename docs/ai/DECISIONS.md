@@ -1,5 +1,11 @@
 # Architectural decisions
 
+## Latest instruction: copy Petora and remove extra infrastructure — 2026-10-20
+
+Use the actual local Petora source and existing Gamenix style. This supersedes earlier decisions retaining generic payment workflows, payment/paymentEvent persistence, custom verification/authTokens, queued order-email delivery and notification wrappers/deduplication. Keep only required copied dependencies; no new framework, worker, dependency, frontend change, database cleanup or live payment.
+
+Preserve USER/SHOP/ADMIN, memberNick/JWT, shopName/approval and existing catalog/order/event/community business rules. Keep copied payment lookup TEST-only and disconnected from orders: Petora lacks safe durable duplicate/replay handling, so it does not supply a working checkout. Copy its PasswordReset model in place of the removed shared token system; retain hashed secrets, expiry, atomic token/guess claims and current email/password binding as small safety adaptations. Keep existing inbox APIs/WAIT/READ/private sockets; repeated notifications can now be stored as in Petora.
+
 - 2026-10-17 copy/adapt request: reuse Petora's PRODUCT/SHOP review module and recipient-only notification delivery; retain existing reusable MailService and marketplace/auth rules. Replace the payment provider token/default and extra core module with concrete PortoneService/shared PaymentModule, preserving all used verification, snapshot and recovery code. REST lookup is pinned TEST/USD; account/profile and hosted-session/signature integration remain unverified and checkout stays disabled. No SDK, live payment, automatic cancellation/refund, new payment collection or duplicate module.
 
 ## Copy-and-adapt scope; password recovery — 2026-10-17
