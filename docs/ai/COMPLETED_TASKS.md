@@ -1,5 +1,11 @@
 # Completed tasks and evidence ledger
 
+## Authentication modal UI — 2026-10-21
+
+Extracted the existing gamenix365-next account actions into shared AuthForm and MUI AuthDialog. Header login opens the dialog on desktop/mobile without navigation; /account/join remains available with its safe referrer behavior. Preserved memberNick/password, optional private signup email, USER/SHOP choice, pending SHOP notice and existing password recovery operations. Aligned responsive fields, full-width submit, password visibility, login/signup switches, right-aligned recovery and accessible close controls; reused existing gaming artwork/MUI/SCSS and added translated labels. No dependency, backend auth, order or payment behavior changed.
+
+Validation: isolated Chrome with intercepted GraphQL fixtures passes desktop/390px modal sizing, inline login errors, successful login/signup closing with current page retained, USER signup payload, password visibility, close/Escape and request/code/reset recovery. No runtime exceptions, live account writes or SMTP. Yarn TypeScript reports only the preexisting pages/_error.tsx:17 getInitialProps wrapper typing failure (also present before this task); no modal type errors. Actual Google/provider credentials remain unconfigured and belong to the next two requested independent increments.
+
 ## Frontend integration using Petora interaction patterns — 2026-10-20
 
 Connected previously unused existing backend contracts in gamenix365-next. No new API, dependency, collection, worker, payment system or business policy. Both Petora repositories were references only and remain clean. Existing product management, single-shop basket, unpaid orders/status actions, community and event lifecycle remain.
