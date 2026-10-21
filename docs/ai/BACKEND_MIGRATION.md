@@ -1,5 +1,9 @@
 # Backend migration: Nestar → Gamenix
 
+## Existing frontend contracts connected — 2026-10-20
+
+The subsequent frontend-integration request is implemented in gamenix365-next; see the newest COMPLETED_TASKS entry. Backend behavior remains as below, with only the memberVievs → memberViews sorting allowlist typo corrected. No new endpoint, model, dependency or business policy. Removed payment operations remain absent and the frontend preserves unpaid ordering. Earlier descriptions saying frontend integration was untouched are historical.
+
 ## Simple Petora replacements — 2026-10-20
 
 The latest user request supersedes the earlier custom payment/email architecture below. Payment now contains only Petora-derived PaymentModule and PortoneService for nonproduction TEST/USD read verification; checkout, payment GraphQL operations, ledgers, webhooks and reconciliation workers are removed. Orders retain their existing API, single-shop, pricing, status, stock and points behavior.

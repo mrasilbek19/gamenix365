@@ -1,5 +1,11 @@
 # Frontend migration plan
 
+## Existing backend integrations completed — 2026-10-20
+
+The current implementation request supersedes the earlier frontend exclusion. gamenix365-next now connects password recovery, optional private email/profile fields, fresh approval/session state, notifications/private socket frames, PRODUCT/SHOP ratings, owner article editing/deletion, contextual comment/review moderation and historical event participants. Unpaid orders remain; all references to removed payment operations were removed from active frontend code. See the latest COMPLETED_TASKS entry for the exact files, operations and validation. Earlier plans below are historical.
+
+Petora supplied interaction references, not its incompatible booking/payment/notification fields. Preserve Gamenix WAIT/READ, notificationDesc/individual refs, memberNick, PRODUCT/SHOP reviews, single-shop orders and event approval rules. Article category is create-only; content remains limited to 250 characters including HTML by the existing backend DTO. Unsupported review uploads, private messaging, support APIs, shop/admin order management and full review-moderation listing remain in NEXT_STEPS.
+
 > Backend compatibility change, 2026-10-20: the Petora simplification removes requestEmailVerification, verifyEmail, getPaymentStatus, getTestCheckoutAvailability and createTestCheckoutSession. Frontend source was not changed. Earlier checkout/verification contracts below are historical.
 
 ## Guarded sandbox checkout and payment polling — 2026-10-17

@@ -1,5 +1,13 @@
 # Next steps
 
+## Frontend integration scope and API gaps — 2026-10-20
+
+The current request authorizes connecting existing backend operations to gamenix365-next. It supersedes the earlier frontend exclusion. Preserve unpaid orders; removed payment operations must not be restored.
+
+Implemented and validated: see the newest COMPLETED_TASKS entry. Existing recovery/profile/approval, inbox/socket, ratings/moderation, article/comment and historical participant operations are connected. The remaining items below are API gaps, not unconnected working endpoints. Real SMTP delivery and live database/end-to-end verification remain unexecuted.
+
+The source audit found no SHOP order inbox/detail API, ADMIN order management/statistics API, private messaging API, customer-support inquiry/FAQ/notice APIs, email-verification operations, or review-image upload target. Review moderation supports a known review ID but has no ADMIN query for hidden/deleted reviews. These need separate backend scope before implementing complete frontend workflows. Public chat, existing order history/status actions, rating text/stars, contextual moderation and existing event/member/product/article management can use the current contract. No new backend system is authorized here.
+
 ## Current state after Petora simplification — 2026-10-20
 
 Use the latest COMPLETED_TASKS entry. The historical implementation plans below no longer authorize restoring removed architecture. Petora lacks standalone email verification, status-email delivery and payment reconciliation; do not invent replacements. SMTP uses SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and MAIL_FROM directly, with no capture transport or durable retries. Password recovery retains its three existing GraphQL operations and accepts the matching optional account email without requiring the now-absent verifier.

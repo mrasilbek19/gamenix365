@@ -1,5 +1,42 @@
 # Completed tasks and evidence ledger
 
+## Frontend integration using Petora interaction patterns — 2026-10-20
+
+Connected previously unused existing backend contracts in gamenix365-next. No new API, dependency, collection, worker, payment system or business policy. Both Petora repositories were references only and remain clean. Existing product management, single-shop basket, unpaid orders/status actions, community and event lifecycle remain.
+
+- Account/profile: optional private signup/profile email, normalized and submitted only when changed (null clears it); optional password/full-name/description controls. Login/signup errors propagate without logout/reload or credential logging; passwords are masked. Petora's request → six-digit code → opaque-token reset flow has loading/error/resend/confirmation states and Gamenix password limits.
+- Session/SHOP: mounted Session, refresh current owner status on navigation/focus using a public-field allowlist, avoid restoring stale approval claims on layout remount, handle malformed/expired JWT hydration. PENDING shops have visible status and disabled management links. ADMIN has a pending-shop filter, approval/rejection labels and confirmation. Removed duplicate list refetches. Backend memberVievs allowlists corrected to memberViews.
+- Notifications: Petora-style bell preview/unread badge, read-all, paginated/category/unread inbox, loading/empty/error states and subtle motion. Uses Gamenix WAIT/READ, notificationDesc and individual refs. Raw Nest WebSockets reconnect on auth changes/disconnects; notification/public-chat listeners coexist and clean up. Only supported destinations are linked.
+- Ratings/comments: PRODUCT/SHOP stars, averages/distribution, sorting/pagination, owner edits and contextual ADMIN hide/permanent removal. Comments stay separate; mounted the existing reusable product/shop comment controls and connected ADMIN removal there and in community. Existing review images display; no unsupported upload target.
+- Articles/events: reused Toast UI for owner article edits, excluded category from update input, added confirmed deletion, fixed query skips and like state. Added include-removed events and participant dialogs for historical records. Participant review controls close outside PROCESS or after start/deletion.
+- Checkout/polish: removed retired payment calls/polling/drafts/resume/helper/test; preserved order payload, shipping estimates, duplicate-click guard and purchased-cart clearing. Related products exclude the current item. Replaced inert contact form with an honest message and working shop link. Existing MUI/SCSS provides responsive panels, switches/toggles, confirmations, accessible controls and reduced-motion styling.
+
+Newly connected operations: requestPasswordReset, verifyPasswordResetCode, resetPassword; getNotifications, getUnreadNotificationsCount, updateNotification, markAllNotificationsRead; getReviews, createNewReview, updateReview, updateReviewByAdmin, removeReviewByAdmin; updateBoardArticle; removeCommentByAdmin. Existing member/signup, ADMIN approval, event/participant, comment and unpaid-order operations support the additional UI paths above.
+
+Modified frontend files, relative to gamenix365-next (43 including additions/deletions):
+
+- apollo: admin/mutation.ts, client.ts, store.ts, user/mutation.ts, user/query.ts.
+- libs/auth/index.ts; libs/components/Chat.tsx, Session.tsx, Top.tsx.
+- libs/components/account/PasswordRecovery.tsx (new); notifications/NotificationBell.tsx (new); product/Reviews.tsx (new), product/Comments.tsx.
+- libs/components/admin/users/MemberList.tsx; community/Teditor.tsx; events/EventBoard.tsx, events/Participants.tsx.
+- libs/components/layout/LayoutAdmin.tsx, LayoutBasic.tsx, LayoutFull.tsx, LayoutHome.tsx.
+- libs/components/mypage/MyArticles.tsx, MyMenu.tsx, MyProfile.tsx, WriteArticle.tsx.
+- libs/enums/member.enum.ts, notification.enum.ts, review.enum.ts (new); libs/types/member/member.input.ts, member.update.ts.
+- pages/_admin/users/index.tsx, _app.tsx, account/join.tsx, community/detail.tsx, mypage/index.tsx, orders/process.tsx, product/detail.tsx, shop/detail.tsx.
+- scss/app.scss, integration.scss (new); scripts/test-basket.cjs. Removed libs/payment.ts and scripts/test-payments.cjs, tied exclusively to removed payment APIs.
+
+Backend: apps/gamenix-api/src/libs/config.ts sort spelling only, plus the five AI handoffs. No environment/lockfile/package change, install, commit, branch switch, live database/provider/SMTP action or deployment.
+
+Validation under installed Node 20.19.0:
+
+- Frontend Yarn TypeScript (noEmit, incremental false), all four existing regression scripts and final production build pass (95 static pages). Basket assertions retain order/cart/error/retry protections and remove obsolete sandbox scenarios.
+- 68 frontend GraphQL documents, including both multipart operations, validate against the actual offline-generated Nest schema (28 queries/42 mutations). Actual shop/member inquiry validators accept memberViews and reject the old spelling.
+- Targeted ESLint with installed next/core-web-vitals and a temporary configuration: zero errors, seven img-element warnings. No repository lint config existed. Build reports existing Browserslist/i18next notices.
+- Isolated Chrome against the final build: recovery; private email load/unchanged omission/normalization; login/authenticated socket reconnection; notification frames alongside chat; badge/preview/inbox/read; rating creation/edit; comment create/edit/delete; article load/edit/delete; ADMIN review hide/status-before-removal; finished/deleted participant history with disabled reviews; pending-shop filter/approval; mobile account/header at 390px. Fixture responses execute against the generated schema; no GraphQL fixture/runtime errors, unsupported payment calls or live writes. Temporary scripts/screenshots stay outside the repositories.
+- Backend API/batch TypeScript and npm run build pass. Jest: 245 pass across nine suites; four opt-in MongoDB tests skip without their test URI. Diff whitespace checks pass.
+
+Remaining API gaps are at the top of NEXT_STEPS. Browser checks use fixtures; real SMTP and live database/end-to-end operations were not exercised.
+
 ## Notifications copied from Petora; final combined validation — 2026-10-20
 
 Copied actual Petora NotificationModule/Service/Resolver and adapted direct payloads in existing shop/order/event services. Preserved recipient-scoped GraphQL operations, Gamenix WAIT/READ, date filters, references and private authenticated socket delivery. Removed recipient Member-model lookup, five wrapper methods and deterministic deduplication fields/index declarations introduced in e411aa1. Original notification schema fields and 4cb96d3 socket privacy remain. Repeated events may now create repeated notifications as in Petora; no live index/data changes. The retired unique dedup index is partial to string keys, so new records without that field do not collide.

@@ -1,5 +1,9 @@
 # Architectural decisions
 
+## Current request: connect existing frontend functionality — 2026-10-20
+
+The subsequent request authorizes frontend changes using actual Gamenix GraphQL operations and selected Petora UI patterns. Keep Pages Router/Apollo/MUI/SCSS, existing shared components and business rules. Remove stale payment UI and retain unpaid checkout. Session approval refresh and raw Nest socket lifecycle belong in the existing Session component; private email stays out of public reactive member state. Ratings remain separate from comments. Do not add APIs for unsupported flows; record those gaps in NEXT_STEPS. The memberViews sort typo is a compatibility fix only. No dependencies, commits, branch changes or live external actions.
+
 ## Latest instruction: copy Petora and remove extra infrastructure — 2026-10-20
 
 Use the actual local Petora source and existing Gamenix style. This supersedes earlier decisions retaining generic payment workflows, payment/paymentEvent persistence, custom verification/authTokens, queued order-email delivery and notification wrappers/deduplication. Keep only required copied dependencies; no new framework, worker, dependency, frontend change, database cleanup or live payment.
