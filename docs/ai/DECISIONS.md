@@ -1,5 +1,9 @@
 # Architectural decisions
 
+## Native KRW plan selected; KakaoPay remains blocked — 2026-10-21
+
+The user selected **Plan native KRW product prices** for the requested KakaoPay sandbox flow. Do not invent an exchange rate, relabel USD amounts, backfill prices or execute a migration. Keep current USD ordering until actual native prices and delivery policies are supplied and coordinated currency snapshots are implemented. Require verified merchant sandbox access and official supported checkout before payment execution. Responsive auth and Google verification are authorized independent increments; no new general payment architecture. See KAKAOPAY_KRW_PLAN.md and GOOGLE_AUTHENTICATION.md.
+
 ## Current request: connect existing frontend functionality — 2026-10-20
 
 The subsequent request authorizes frontend changes using actual Gamenix GraphQL operations and selected Petora UI patterns. Keep Pages Router/Apollo/MUI/SCSS, existing shared components and business rules. Remove stale payment UI and retain unpaid checkout. Session approval refresh and raw Nest socket lifecycle belong in the existing Session component; private email stays out of public reactive member state. Ratings remain separate from comments. Do not add APIs for unsupported flows; record those gaps in NEXT_STEPS. The memberViews sort typo is a compatibility fix only. No dependencies, commits, branch changes or live external actions.

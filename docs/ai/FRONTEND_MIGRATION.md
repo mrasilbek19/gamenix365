@@ -1,5 +1,9 @@
 # Frontend migration plan
 
+## Auth dialogs, Google button and blocked KakaoPay confirmation — 2026-10-21
+
+The latest request adds shared responsive MUI/SCSS auth dialogs, official GIS button and existing Apollo/JWT adoption. Google requires configured client IDs. Successful order creation now shows its server USD total and disabled KakaoPay method with readiness/error retry, retaining existing cart/order semantics. It never treats callbacks as paid. No provider checkout exists while KRW pricing and test-channel evidence are missing. Native KRW planning was selected; see KAKAOPAY_KRW_PLAN.md.
+
 ## Existing backend integrations completed — 2026-10-20
 
 The current implementation request supersedes the earlier frontend exclusion. gamenix365-next now connects password recovery, optional private email/profile fields, fresh approval/session state, notifications/private socket frames, PRODUCT/SHOP ratings, owner article editing/deletion, contextual comment/review moderation and historical event participants. Unpaid orders remain; all references to removed payment operations were removed from active frontend code. See the latest COMPLETED_TASKS entry for the exact files, operations and validation. Earlier plans below are historical.

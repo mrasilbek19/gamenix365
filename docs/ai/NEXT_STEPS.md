@@ -1,5 +1,9 @@
 # Next steps
 
+## Configuration and KRW decisions before external checkout — 2026-10-21
+
+Configure matching backend GOOGLE_CLIENT_ID/frontend NEXT_PUBLIC_GOOGLE_CLIENT_ID and Google Cloud origins/audience as described in GOOGLE_AUTHENTICATION.md; verify deployed unique identity indexes before real-user tests. For KakaoPay, supply native KRW prices and delivery policy and follow KAKAOPAY_KRW_PLAN.md. Current getKakaoPayTestAvailability is always false; only saved unpaid-order UI/readiness and existing lookup boundaries are tested. Merchant sandbox/channel/QR, actual provider execution, durable charge idempotency and coordinated currency migration remain unimplemented. Earlier exclusions below are historical for this new explicit request.
+
 ## Frontend integration scope and API gaps — 2026-10-20
 
 The current request authorizes connecting existing backend operations to gamenix365-next. It supersedes the earlier frontend exclusion. Preserve unpaid orders; removed payment operations must not be restored.

@@ -38,6 +38,13 @@ export class PortoneService implements OnModuleInit {
 				.every((value) => typeof value === 'string' && value.trim().length > 0);
 	}
 
+	/** Readiness only: current USD orders cannot enter KakaoPay's KRW-only checkout. */
+	public getKakaoPayTestAvailability() {
+		const blockers = ['KRW_PRICING_REQUIRED', 'CHECKOUT_NOT_INTEGRATED'];
+		if (!this.configured) blockers.push('TEST_CHANNEL_NOT_CONFIGURED');
+		return { enabled: false, currency: 'USD', requiredCurrency: 'KRW', blockers };
+	}
+
 	public onModuleInit(): void {
 		if (this.configured) return;
 		this.logger.warn('PortOne TEST verification is not configured; payment checkout is unavailable.');

@@ -1,5 +1,9 @@
 # Backend migration: Nestar → Gamenix
 
+## Requested auth and conditional KakaoPay increments — 2026-10-21
+
+The latest request authorizes responsive auth dialogs, official Google ID-token verification and only safe KakaoPay portions when provider/currency prerequisites are absent. Google is implemented in existing auth/member files; its client IDs remain unconfigured. PaymentModule adds read-only getKakaoPayTestAvailability, always disabled for current USD orders. No payment execution or order business-rule change. The user selected planning native KRW prices; see KAKAOPAY_KRW_PLAN.md. Older payment/frontend exclusions below are historical.
+
 ## Existing frontend contracts connected — 2026-10-20
 
 The subsequent frontend-integration request is implemented in gamenix365-next; see the newest COMPLETED_TASKS entry. Backend behavior remains as below, with only the memberVievs → memberViews sorting allowlist typo corrected. No new endpoint, model, dependency or business policy. Removed payment operations remain absent and the frontend preserves unpaid ordering. Earlier descriptions saying frontend integration was untouched are historical.
