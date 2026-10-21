@@ -21,10 +21,18 @@ const MemberSchema = new Schema({
         default: MemberAuthType.PHONE,
     },
 
+    googleSubject: {
+        type: String,
+        select: false,
+        immutable: true,
+        minlength: 1,
+        maxlength: 255,
+    },
+
     memberPhone: {
         type: String,
         index: { unique: true, sparse: true },
-        required: true,
+        required: function () { return this.memberAuthType !== MemberAuthType.GOOGLE || !this.googleSubject; },
     },
 
     memberNick: {
@@ -71,7 +79,7 @@ const MemberSchema = new Schema({
     memberPassword: {
         type: String,
         select: false,
-        required: true,
+        required: function () { return this.memberAuthType !== MemberAuthType.GOOGLE || !this.googleSubject; },
     },
 
     memberFullName: {
@@ -157,6 +165,11 @@ const MemberSchema = new Schema({
 MemberSchema.index(
     { memberEmail: 1 },
     { unique: true, partialFilterExpression: { memberEmail: { $type: 'string' } } },
+);
+
+MemberSchema.index(
+    { googleSubject: 1 },
+    { unique: true, partialFilterExpression: { googleSubject: { $type: 'string' } } },
 );
 
 export default MemberSchema;

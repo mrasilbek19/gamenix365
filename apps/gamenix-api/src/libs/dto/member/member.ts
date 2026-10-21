@@ -35,6 +35,9 @@ export class Member {
 
     memberPassword?: string;
 
+    // Internal identity only; never exposed as a GraphQL field or JWT claim.
+    googleSubject?: string;
+
     @Field(() => String, { nullable: true })
     memberFullName?: string;
 

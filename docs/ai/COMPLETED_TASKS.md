@@ -1,5 +1,11 @@
 # Completed tasks and evidence ledger
 
+## Google authentication with stable provider identity — 2026-10-21
+
+Adapted Petora's interaction/verifier within the existing Gamenix auth/member files, with Google's official backend google-auth-library and frontend GIS script. Added the GoogleLoginInput/loginAndSignupWithGoogle mutation, private immutable unique googleSubject, USER-only creation without fake passwords or phone numbers, returning identity by sub, safe email-conflict rejection, role/status/deletion checks, JWT-private-field exclusion and the existing Apollo/JWT session update. The shared auth form now includes the official Google button with disabled/unconfigured and local-error states. No automatic email merge, ADMIN/SHOP creation, guard/order rewrite or live credential/data change.
+
+24 focused offline cases pass, including actual RSA signature verification through Google's library with offline certificates. Isolated configured/unconfigured Chrome fixture paths pass, including credential rejection, session adoption, close and current-page preservation. Actual Google login remains untested because GOOGLE_CLIENT_ID/NEXT_PUBLIC_GOOGLE_CLIENT_ID are absent. GOOGLE_AUTHENTICATION.md records exact Cloud Console/environment setup and the unique-index deployment check. Both backend TypeScript checks, API build, full 269-test offline suite (four database tests skipped), module DI/schema generation and 69 frontend GraphQL document validations pass. Frontend Yarn TypeScript continues to report only the preexisting pages/_error.tsx wrapper error.
+
 ## Authentication modal UI — 2026-10-21
 
 Extracted the existing gamenix365-next account actions into shared AuthForm and MUI AuthDialog. Header login opens the dialog on desktop/mobile without navigation; /account/join remains available with its safe referrer behavior. Preserved memberNick/password, optional private signup email, USER/SHOP choice, pending SHOP notice and existing password recovery operations. Aligned responsive fields, full-width submit, password visibility, login/signup switches, right-aligned recovery and accessible close controls; reused existing gaming artwork/MUI/SCSS and added translated labels. No dependency, backend auth, order or payment behavior changed.

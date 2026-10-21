@@ -1,10 +1,10 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, Optional, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Member, Members } from '../../libs/dto/member/member';
 import { AgentsInquiry, LoginInput, MemberInput, MembersInquiry, PasswordResetInput, PasswordResetRequestInput, PasswordResetVerifyInput } from '../../libs/dto/member/member.input';
 import { Direction, Message } from '../../libs/enums/common.enum';
-import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
+import { MemberAuthType, MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { AuthService } from '../auth/auth.service';
 import { MemberUpdate } from '../../libs/dto/member/member.update';
 import { ObjectId } from 'mongoose';
@@ -52,6 +52,8 @@ export class MemberService {
 
     public async signup(input: MemberInput): Promise<Member> {
         this.prepareMemberEmail(input);
+        // Password signup cannot claim a verified Google identity.
+        input.memberAuthType = MemberAuthType.PHONE;
         const memberType = input.memberType ?? MemberType.USER;
         if (![MemberType.USER, MemberType.SHOP].includes(memberType)) {
             throw new BadRequestException(Message.NOT_ALLOWED_REQUEST);
@@ -87,11 +89,47 @@ export class MemberService {
             throw new InternalServerErrorException(Message.BLOCKED_USER);
         }
 
+        if (!response.memberPassword) throw new UnauthorizedException('Use Continue with Google to sign in to this account.');
         const isMatch = await this.authService.comparePassword(input.memberPassword, response.memberPassword);
         if (!isMatch) throw new InternalServerErrorException(Message.WRONG_PASSWORD);
 
         response.accessToken = await this.authService.createToken(response)
 
+        return response;
+    }
+
+    public async loginAndSignupWithGoogle(idToken: string): Promise<Member> {
+        const payload = await this.authService.verifyGoogleToken(idToken);
+        const memberEmail = payload.email.trim().toLowerCase();
+        // Email is mutable. Only Google's verified, stable sub binds a returning identity.
+        let response = await this.memberModel.findOne({ googleSubject: payload.sub }).exec();
+        if (!response) {
+            if (await this.memberModel.exists({ memberEmail })) {
+                throw new ConflictException('An account already uses this email. Sign in with your existing method; account linking is not enabled.');
+            }
+            try {
+                response = await this.memberModel.create({
+                    googleSubject: payload.sub,
+                    memberAuthType: MemberAuthType.GOOGLE,
+                    memberType: MemberType.USER,
+                    memberStatus: MemberStatus.ACTIVE,
+                    memberNick: `g${randomBytes(5).toString('hex')}`,
+                    memberEmail,
+                    memberEmailVerified: true,
+                    memberFullName: payload.name?.trim().slice(0, 100),
+                    // Google supplies no phone or password. Leave both absent.
+                });
+            } catch (err) {
+                if (err.code !== 11000) throw new InternalServerErrorException('Google sign-in could not be completed. Please try again.');
+                // A concurrent request for the same subject can reuse its one existing account.
+                response = await this.memberModel.findOne({ googleSubject: payload.sub }).exec();
+                if (!response) throw new ConflictException('An account already uses this email or username. Sign in with your existing method.');
+            }
+        }
+        if (response.memberType !== MemberType.USER || response.memberStatus !== MemberStatus.ACTIVE || response.deletedAt) {
+            throw new UnauthorizedException('This account cannot use Google sign-in.');
+        }
+        response.accessToken = await this.authService.createToken(response);
         return response;
     }
 

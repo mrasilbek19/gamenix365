@@ -1,7 +1,7 @@
 import { Args, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { MemberService } from './member.service';
 import { BadRequestException, InternalServerErrorException, UseGuards } from '@nestjs/common';
-import { AgentsInquiry, LoginInput, MemberInput, MembersInquiry, PasswordResetInput, PasswordResetRequestInput, PasswordResetVerifyInput } from '../../libs/dto/member/member.input';
+import { AgentsInquiry, GoogleLoginInput, LoginInput, MemberInput, MembersInquiry, PasswordResetInput, PasswordResetRequestInput, PasswordResetVerifyInput } from '../../libs/dto/member/member.input';
 import { Member, Members } from '../../libs/dto/member/member';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
@@ -34,6 +34,17 @@ export class MemberResolver {
         if (!memberId || String(memberId) !== String(member._id)) return null;
         const result = await this.memberService.getMemberEmail(memberId);
         return result ? result.memberEmailVerified ?? false : null;
+    }
+
+    @ResolveField(() => String)
+    public memberPhone(@Parent() member: Member): string {
+        // Preserve the existing non-null GraphQL output for Google users without a phone.
+        return member.memberPhone ?? '';
+    }
+
+    @Mutation(() => Member)
+    public async loginAndSignupWithGoogle(@Args('input') input: GoogleLoginInput): Promise<Member> {
+        return await this.memberService.loginAndSignupWithGoogle(input.idToken);
     }
 
     @Mutation(() => Member)
