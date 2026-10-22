@@ -1,5 +1,9 @@
 # Architectural decisions
 
+## Native KRW implemented; historical repricing requires approval — 2026-10-21
+
+The latest request authorizes native KRW products/orders and a ₩50,000 free-delivery threshold. User-approved below-threshold fees are literally KRW 50 normal and KRW 70 furniture. Store explicit currency without a schema default, reject legacy checkout/ordinary price conversion, preserve historical USD orders/items/payments. Require supplied native product prices and reviewed replacement/audit policy before historical writes. Sandbox credentials remain absent; no provider flow is enabled. See KRW_MIGRATION.md.
+
 ## Native KRW plan selected; KakaoPay remains blocked — 2026-10-21
 
 The user selected **Plan native KRW product prices** for the requested KakaoPay sandbox flow. Do not invent an exchange rate, relabel USD amounts, backfill prices or execute a migration. Keep current USD ordering until actual native prices and delivery policies are supplied and coordinated currency snapshots are implemented. Require verified merchant sandbox access and official supported checkout before payment execution. Responsive auth and Google verification are authorized independent increments; no new general payment architecture. See KAKAOPAY_KRW_PLAN.md and GOOGLE_AUTHENTICATION.md.

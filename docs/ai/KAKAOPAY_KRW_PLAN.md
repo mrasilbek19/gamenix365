@@ -1,5 +1,9 @@
 # KakaoPay sandbox and native KRW pricing plan — 2026-10-21
 
+## Implementation update — 2026-10-21
+
+Native KRW fields/validation, approved shipping and locale-aware UI for new records are implemented. Historical native-price approval and actual sandbox integration remain outstanding. KRW_MIGRATION.md supersedes the current-state/planning-only descriptions below; no historical data was converted.
+
 ## Approved direction and current limit
 
 The user selected **Plan native KRW product prices**. This authorizes the plan, not invented prices or an automatic conversion. Current catalog, delivery fees, order snapshots, displays and emails stay USD. No migration, environment edits, live database/index operation or provider payment occurred.

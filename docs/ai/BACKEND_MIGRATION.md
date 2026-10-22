@@ -1,5 +1,9 @@
 # Backend migration: Nestar → Gamenix
 
+## Native KRW for new commerce records — 2026-10-21
+
+New products/orders/item snapshots now use explicit KRW and safe-integer amounts. Approved shipping is ₩50 ordinary / ₩70 furniture below ₩50,000, free from exactly ₩50,000 and for pickup. getShippingPolicy supplies frontend estimates; backend remains authoritative. Historical records are untouched and missing currency resolves to legacy USD. See KRW_MIGRATION.md and the latest completion ledger. Earlier USD/current-currency descriptions below are historical.
+
 ## Requested auth and conditional KakaoPay increments — 2026-10-21
 
 The latest request authorizes responsive auth dialogs, official Google ID-token verification and only safe KakaoPay portions when provider/currency prerequisites are absent. Google is implemented in existing auth/member files; its client IDs remain unconfigured. PaymentModule adds read-only getKakaoPayTestAvailability, always disabled for current USD orders. No payment execution or order business-rule change. The user selected planning native KRW prices; see KAKAOPAY_KRW_PLAN.md. Older payment/frontend exclusions below are historical.

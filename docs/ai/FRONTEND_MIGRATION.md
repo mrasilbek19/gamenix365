@@ -1,5 +1,9 @@
 # Frontend migration plan
 
+## KRW formatting and server shipping policy — 2026-10-21
+
+Frontend now selects currency/subtotal fields, uses shared locale-aware integer KRW formatting, reads getShippingPolicy for estimates and blocks old/mixed-currency basket snapshots. SHOP price input has integer won steps. Active KRW pricing UI has no USD or dollar labels; historical USD order views preserve original money. Public legacy products require approved repricing. Payment confirmation shows a saved unpaid KRW order and honest provider blocker. See KRW_MIGRATION.md.
+
 ## Auth dialogs, Google button and blocked KakaoPay confirmation — 2026-10-21
 
 The latest request adds shared responsive MUI/SCSS auth dialogs, official GIS button and existing Apollo/JWT adoption. Google requires configured client IDs. Successful order creation now shows its server USD total and disabled KakaoPay method with readiness/error retry, retaining existing cart/order semantics. It never treats callbacks as paid. No provider checkout exists while KRW pricing and test-channel evidence are missing. Native KRW planning was selected; see KAKAOPAY_KRW_PLAN.md.
