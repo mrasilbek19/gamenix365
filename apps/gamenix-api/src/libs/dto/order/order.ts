@@ -7,7 +7,13 @@ import { Product } from '../product/product';
 @ObjectType()
 export class Order {
     @Field(() => String)
+    currency?: string;
+
+    @Field(() => String)
     _id: ObjectId;
+
+    @Field(() => Number)
+    orderSubtotal?: number;
 
     @Field(() => Number)
     orderTotal: number;

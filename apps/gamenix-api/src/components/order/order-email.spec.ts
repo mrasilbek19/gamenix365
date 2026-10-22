@@ -24,7 +24,7 @@ describe('Petora order invoice hooks and original order behavior', () => {
         targetOrder = { _id: orderId, memberId: buyerId, shopId, orderStatus: OrderStatus.PAUSE,
             orderTotal: 85, orderDelivery: 5, orderDeliveryType: OrderDeliveryType.DELIVERY, orderAddress: '123 Gaming Street' };
         product = { _id: productId, memberId: shopId, productName: 'Keyboard', productType: ProductType.KEYBOARD,
-            productStatus: ProductStatus.PROCESS, productPrice: 40, productLeftCount: 10 };
+            productStatus: ProductStatus.PROCESS, productPrice: 20000, currency: 'KRW', productLeftCount: 10 };
         orders = {
             create: jest.fn(async (input) => ({ ...targetOrder, ...input })),
             findOne: jest.fn(() => query(() => ({ ...targetOrder }))),
@@ -32,7 +32,7 @@ describe('Petora order invoice hooks and original order behavior', () => {
         };
         items = {
             create: jest.fn(async (input) => input),
-            find: jest.fn(() => query(() => [{ productId, itemQuantity: 2, itemPrice: 40 }])),
+            find: jest.fn(() => query(() => [{ productId, itemQuantity: 2, itemPrice: 20000 }])),
         };
         products = { find: jest.fn(() => query(() => [product])), findOneAndUpdate: jest.fn(() => query(() => product)) };
         members = { exists: jest.fn(() => query(() => ({ _id: buyerId }))),
@@ -43,10 +43,10 @@ describe('Petora order invoice hooks and original order behavior', () => {
     });
 
     it.each([
-        [OrderDeliveryType.PICKUP, ProductType.KEYBOARD, 2, 0, 80],
-        [OrderDeliveryType.DELIVERY, ProductType.KEYBOARD, 2, 5, 85],
-        [OrderDeliveryType.DELIVERY, ProductType.KEYBOARD, 3, 0, 120],
-        [OrderDeliveryType.DELIVERY, ProductType.CHAIR, 2, 15, 95],
+        [OrderDeliveryType.PICKUP, ProductType.KEYBOARD, 2, 0, 40000],
+        [OrderDeliveryType.DELIVERY, ProductType.KEYBOARD, 2, 50, 40050],
+        [OrderDeliveryType.DELIVERY, ProductType.KEYBOARD, 3, 0, 60000],
+        [OrderDeliveryType.DELIVERY, ProductType.CHAIR, 2, 70, 40070],
     ])('preserves %s/%s shipping and totals, then emails the buyer an invoice', async (type, category, quantity, fee, total) => {
         product.productType = category;
         email.sendOrderInvoice.mockImplementation(async () => {
@@ -59,10 +59,68 @@ describe('Petora order invoice hooks and original order behavior', () => {
         });
         expect(result).toMatchObject({ memberId: buyerId, shopId, orderDelivery: fee, orderTotal: total, orderStatus: OrderStatus.PAUSE });
         expect(email.sendOrderInvoice).toHaveBeenCalledWith('buyer@example.test', result, [
-            { name: 'Keyboard', quantity, price: 40 },
+            { name: 'Keyboard', quantity, price: 20000 },
         ]);
         expect(products.findOneAndUpdate).not.toHaveBeenCalled();
         expect(memberService.memberStatsEditor).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [49999, 1, OrderDeliveryType.DELIVERY, ProductType.KEYBOARD, 50],
+        [50000, 1, OrderDeliveryType.DELIVERY, ProductType.KEYBOARD, 0],
+        [75000, 1, OrderDeliveryType.DELIVERY, ProductType.CHAIR, 0],
+        [49999, 1, OrderDeliveryType.DELIVERY, ProductType.DESK, 70],
+        [50000, 1, OrderDeliveryType.DELIVERY, ProductType.DESK, 0],
+        [24999, 2, OrderDeliveryType.DELIVERY, ProductType.KEYBOARD, 50],
+        [25000, 2, OrderDeliveryType.DELIVERY, ProductType.CHAIR, 0],
+        [49999, 1, OrderDeliveryType.PICKUP, ProductType.CHAIR, 0],
+    ])('calculates native KRW %i × %i %s/%s with shipping %i', async (price, quantity, type, category, fee) => {
+        product.productPrice = price; product.productType = category;
+        const result = await service.createOrder(buyerId as any, { orderDeliveryType: type,
+            orderAddress: 'Seoul', orderItems: [{ productId: productId as any, itemQuantity: quantity }],
+            orderTotal: 1, orderDelivery: 0, currency: 'USD',
+        } as any);
+        expect(result).toMatchObject({ currency: 'KRW', orderSubtotal: price * quantity,
+            orderDelivery: fee, orderTotal: price * quantity + fee });
+        expect(items.create).toHaveBeenCalledWith(expect.objectContaining({ currency: 'KRW', itemPrice: price, itemQuantity: quantity }));
+        expect(products.findOneAndUpdate).not.toHaveBeenCalled();
+        expect(memberService.memberStatsEditor).not.toHaveBeenCalled();
+    });
+
+    it('combines multiple products and quantities before applying the free-delivery threshold', async () => {
+        const desk = { ...product, _id: new Types.ObjectId(), productPrice: 15000, productType: ProductType.DESK };
+        products.find.mockReturnValue(query(() => [product, desk]));
+        const result = await service.createOrder(buyerId as any, { orderDeliveryType: OrderDeliveryType.DELIVERY,
+            orderAddress: 'Seoul', orderItems: [{ productId: productId as any, itemQuantity: 1 },
+                { productId: desk._id as any, itemQuantity: 2 }],
+        });
+        expect(result).toMatchObject({ currency: 'KRW', orderSubtotal: 50000, orderDelivery: 0, orderTotal: 50000 });
+        expect(items.create).toHaveBeenCalledTimes(2);
+        expect(items.create).toHaveBeenCalledWith(expect.objectContaining({ productId: desk._id, currency: 'KRW', itemPrice: 15000, itemQuantity: 2 }));
+    });
+
+    it.each([undefined, 'USD'])('rejects legacy currency %s without writing an order', async (currency) => {
+        product.currency = currency;
+        await expect(service.createOrder(buyerId as any, { orderDeliveryType: OrderDeliveryType.PICKUP,
+            orderItems: [{ productId: productId as any, itemQuantity: 1 }],
+        })).rejects.toThrow('approved KRW repricing');
+        expect(orders.create).not.toHaveBeenCalled(); expect(items.create).not.toHaveBeenCalled();
+    });
+
+    it.each([0.5, -1, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])('rejects invalid KRW price %s', async (price) => {
+        product.productPrice = price;
+        await expect(service.createOrder(buyerId as any, { orderDeliveryType: OrderDeliveryType.PICKUP,
+            orderItems: [{ productId: productId as any, itemQuantity: 1 }],
+        })).rejects.toThrow('safe integers');
+        expect(orders.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects quantity multiplication overflow before persistence', async () => {
+        product.productPrice = Number.MAX_SAFE_INTEGER;
+        await expect(service.createOrder(buyerId as any, { orderDeliveryType: OrderDeliveryType.PICKUP,
+            orderItems: [{ productId: productId as any, itemQuantity: 2 }],
+        })).rejects.toThrow('safe integers');
+        expect(orders.create).not.toHaveBeenCalled();
     });
 
     it('keeps checkout successful without email', async () => {

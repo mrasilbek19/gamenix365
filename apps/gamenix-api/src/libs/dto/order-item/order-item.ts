@@ -4,6 +4,9 @@ import { ObjectId } from 'mongoose';
 @ObjectType()
 export class OrderItem {
     @Field(() => String)
+    currency?: string;
+
+    @Field(() => String)
     _id: ObjectId;
 
     @Field(() => Int)

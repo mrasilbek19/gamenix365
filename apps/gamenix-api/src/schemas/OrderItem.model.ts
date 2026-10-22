@@ -2,6 +2,9 @@ import { Schema } from 'mongoose';
 
 const OrderItemSchema = new Schema(
     {
+        // No default: missing currency on existing records remains legacy USD.
+        currency: { type: String, enum: ['KRW', 'USD'], required: true, immutable: true },
+
         itemQuantity: {
             type: Number,
             required: true,
@@ -13,6 +16,7 @@ const OrderItemSchema = new Schema(
             type: Number,
             required: true,
             min: 0,
+            validate: { validator: Number.isSafeInteger, message: 'KRW amounts must be safe integers' },
         },
 
         orderId: {

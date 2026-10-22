@@ -1,3 +1,4 @@
+import { assertKrwAmount, deliveryFee } from '../../libs/money';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, ObjectId, Types } from 'mongoose';
@@ -54,12 +55,16 @@ export class OrderService {
         const orderItems = input.orderItems.map((item) => {
             const product = products.find((product) => String(product._id) === String(item.productId));
             if (!product) throw new NotFoundException('Product not found');
+            if (product.currency !== 'KRW') throw new BadRequestException('Legacy products require approved KRW repricing before checkout.');
+            assertKrwAmount(product.productPrice);
+            assertKrwAmount(product.productPrice * item.itemQuantity);
             if (product.productLeftCount < item.itemQuantity) throw new ConflictException('Insufficient product stock');
 
             return {
                 productId: product._id,
                 itemQuantity: item.itemQuantity,
                 itemPrice: product.productPrice,
+                currency: 'KRW',
             };
         });
 
@@ -77,20 +82,20 @@ export class OrderService {
         if (!shop) throw new ForbiddenException('An active shop is required');
 
         const subtotal = orderItems.reduce((total, item) => total + item.itemPrice * item.itemQuantity, 0);
+        assertKrwAmount(subtotal);
         const orderDeliveryType = input.orderDeliveryType ?? OrderDeliveryType.DELIVERY;
         const hasFurniture = products.some((product) =>
             product.productType === ProductType.CHAIR || product.productType === ProductType.DESK
         );
-        let orderDelivery = 0;
-        if (orderDeliveryType === OrderDeliveryType.DELIVERY) {
-            if (hasFurniture) orderDelivery = 15;
-            else if (subtotal < 100) orderDelivery = 5;
-        }
+        const orderDelivery = deliveryFee(subtotal, orderDeliveryType, hasFurniture);
+        assertKrwAmount(subtotal + orderDelivery);
 
         const result: Order = await this.orderModel.create({
             memberId: memberId,
             shopId: shopId,
-            orderTotal: Math.round((subtotal + orderDelivery) * 100) / 100,
+            currency: 'KRW',
+            orderSubtotal: subtotal,
+            orderTotal: subtotal + orderDelivery,
             orderDelivery: orderDelivery,
             orderAddress: input.orderAddress?.trim(),
             orderDeliveryType: orderDeliveryType,
@@ -123,7 +128,7 @@ export class OrderService {
 
     private async recordOrderItem(
         orderId: ObjectId,
-        input: { productId: ObjectId; itemQuantity: number; itemPrice: number }[],
+        input: { productId: ObjectId; itemQuantity: number; itemPrice: number; currency: string }[],
     ): Promise<void> {
         await Promise.all(
             input.map((item) => this.orderItemModel.create({ ...item, orderId: orderId })),
@@ -165,7 +170,7 @@ export class OrderService {
             ])
             .exec();
 
-        return result;
+        return result.map((order) => ({ ...order, orderItems: order.orderItems?.map((item) => ({ ...item, currency: item.currency ?? order.currency ?? 'USD' })) }));
     }
 
     public async updateOrder(

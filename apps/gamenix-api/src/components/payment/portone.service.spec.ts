@@ -2,7 +2,7 @@ import { HttpService } from '@nestjs/axios';
 import { PortoneService } from './portone.service';
 
 const payment = () => ({
-	id: 'test-payment', storeId: 'test-store', status: 'PAID', currency: 'USD',
+	id: 'test-payment', storeId: 'test-store', status: 'PAID', currency: 'KRW',
 	channel: { type: 'TEST', id: 'test-channel' },
 	amount: { total: 5500, paid: 5500, cancelled: 0 },
 	transactionId: 'test-transaction', paidAt: '2026-10-21T00:00:00Z',
@@ -25,8 +25,8 @@ describe('PortOne TEST payment boundaries and KakaoPay readiness', () => {
 
 	it('cannot enable KakaoPay by supplying environment flags or credentials', () => {
 		expect(service.configured).toBe(true);
-		expect(service.getKakaoPayTestAvailability()).toEqual({ enabled: false, currency: 'USD',
-			requiredCurrency: 'KRW', blockers: ['KRW_PRICING_REQUIRED', 'CHECKOUT_NOT_INTEGRATED'] });
+		expect(service.getKakaoPayTestAvailability()).toEqual({ enabled: false, currency: 'KRW',
+			requiredCurrency: 'KRW', blockers: ['CHECKOUT_NOT_INTEGRATED'] });
 		expect(get).not.toHaveBeenCalled();
 	});
 	it.each(['production', 'test'])('reports unconfigured sandbox safely in %s', (environment) => {
@@ -52,7 +52,7 @@ describe('PortOne TEST payment boundaries and KakaoPay readiness', () => {
 		['reference', { id: 'other' }], ['store', { storeId: 'other' }],
 		['live channel', { channel: { type: 'LIVE', id: 'test-channel' } }],
 		['foreign channel', { channel: { type: 'TEST', id: 'other' } }],
-		['KRW against USD order', { currency: 'KRW' }],
+		['USD against KRW order', { currency: 'USD' }],
 		['unpaid', { status: 'READY' }], ['cancelled', { status: 'CANCELLED' }],
 		['amount', { amount: { total: 5501, paid: 5501, cancelled: 0 } }],
 		['partial capture', { amount: { total: 5500, paid: 5000, cancelled: 0 } }],

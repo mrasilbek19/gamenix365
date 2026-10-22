@@ -1,5 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsEnum, IsIn, IsInt, IsNumber, IsNotEmpty, IsOptional, Length, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, Max, IsNotEmpty, IsOptional, Length, Min } from 'class-validator';
 import { ProductStatus, ProductType } from '../../enums/product.enum';
 import { ObjectId } from 'mongoose';
 import { availableProductSorts } from '../../config';
@@ -18,7 +18,8 @@ export class ProductInput {
     productName: string;
 
     @IsNotEmpty()
-    @IsNumber()
+    @IsInt()
+    @Max(Number.MAX_SAFE_INTEGER)
     @Min(0)
     @Field(() => Number)
     productPrice: number;

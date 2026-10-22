@@ -18,7 +18,9 @@ const escapeHtml = (value: string): string => value.replace(/[&<>"']/g, (charact
 	'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[character]));
 
-const usd = (value: number): string => `$${(value ?? 0).toFixed(2)}`;
+const money = (value: number, currency?: string): string => currency === 'KRW'
+	? `₩${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+	: `USD ${(value ?? 0).toFixed(2)}`;
 
 // Printed once in a format both audiences read: 2026. 08. 07.
 const formatDate = (date: Date): string =>
@@ -68,7 +70,7 @@ export const orderInvoiceHtml = (order: Order, lines: InvoiceLine[]): string => 
 <tr>
 	<td style="padding:8px 0;font-size:14px;color:#111827;border-bottom:1px solid #f3f4f6;">${escapeHtml(line.name)}</td>
 	<td style="padding:8px 0;font-size:14px;color:#6b7280;text-align:center;border-bottom:1px solid #f3f4f6;">×${line.quantity}</td>
-	<td style="padding:8px 0;font-size:14px;color:#111827;text-align:right;border-bottom:1px solid #f3f4f6;">${usd(line.price * line.quantity)}</td>
+	<td style="padding:8px 0;font-size:14px;color:#111827;text-align:right;border-bottom:1px solid #f3f4f6;">${money(line.price * line.quantity, order.currency)}</td>
 </tr>`,
 		)
 		.join('');
@@ -90,7 +92,7 @@ export const orderInvoiceHtml = (order: Order, lines: InvoiceLine[]): string => 
 	<tr>
 		<td colspan="2" style="padding:8px 0;font-size:14px;color:#6b7280;">${bi('배송비', 'Delivery')}</td>
 		<td style="padding:8px 0;font-size:14px;color:#111827;text-align:right;">${
-			order.orderDelivery > 0 ? usd(order.orderDelivery) : bi('무료', 'Free')
+			order.orderDelivery > 0 ? money(order.orderDelivery, order.currency) : bi('무료', 'Free')
 		}</td>
 	</tr>
 	<tr>
@@ -98,8 +100,8 @@ export const orderInvoiceHtml = (order: Order, lines: InvoiceLine[]): string => 
 			'총 주문금액',
 			'Total',
 		)}</td>
-		<td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:#111827;text-align:right;border-top:2px solid #111827;">${usd(
-			order.orderTotal,
+		<td style="padding:12px 0 0;font-size:16px;font-weight:bold;color:#111827;text-align:right;border-top:2px solid #111827;">${money(
+			order.orderTotal, order.currency,
 		)}</td>
 	</tr>
 </table>`;

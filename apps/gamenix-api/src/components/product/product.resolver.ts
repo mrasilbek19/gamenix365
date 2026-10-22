@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, Mutation, Resolver, Query } from '@nestjs/graphql';
+import { Args, Mutation, Resolver, Query, ResolveField, Parent } from '@nestjs/graphql';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
@@ -13,9 +13,12 @@ import { shapeIntoMongoObjectId } from '../../libs/config';
 import { ProductUpdate } from '../../libs/dto/product/product.update';
 import { AuthGuard } from '../auth/guards/auth.guard';
 
-@Resolver()
+@Resolver(() => Product)
 export class ProductResolver {
     constructor(private readonly productService: ProductService) { }
+
+    @ResolveField(() => String)
+    public currency(@Parent() product: Product): string { return product.currency ?? 'USD'; }
 
     @Roles(MemberType.SHOP)
     @UseGuards(RolesGuard)

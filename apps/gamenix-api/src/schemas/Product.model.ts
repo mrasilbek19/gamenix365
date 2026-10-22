@@ -3,6 +3,9 @@ import { ProductStatus, ProductType } from '../libs/enums/product.enum';
 
 const ProductSchema = new Schema(
 	{
+		// No default: missing currency on existing records remains legacy USD.
+		currency: { type: String, enum: ['KRW', 'USD'], required: true, immutable: true },
+
 		productType: {
 			type: String,
 			enum: ProductType,
@@ -24,6 +27,7 @@ const ProductSchema = new Schema(
 			type: Number,
 			min: 0,
 			required: true,
+			validate: { validator: Number.isSafeInteger, message: 'KRW amounts must be safe integers' },
 		},
 
 		productLeftCount: {

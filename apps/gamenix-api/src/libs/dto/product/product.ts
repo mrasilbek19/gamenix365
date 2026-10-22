@@ -7,6 +7,9 @@ import { MeLiked } from '../like/like';
 @ObjectType()
 export class Product {
     @Field(() => String)
+    currency?: string;
+
+    @Field(() => String)
     _id: ObjectId;
 
     @Field(() => ProductType)

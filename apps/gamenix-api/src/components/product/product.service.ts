@@ -1,3 +1,4 @@
+import { assertKrwAmount } from '../../libs/money';
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
@@ -27,8 +28,9 @@ export class ProductService {
 
     public async createProduct(input: ProductInput): Promise<Product> {
         await this.memberService.assertActiveShop(input.memberId);
+        assertKrwAmount(input.productPrice);
         try {
-            const result = await this.productModel.create(input);
+            const result = await this.productModel.create({ ...input, currency: 'KRW' });
             await this.memberService.memberStatsEditor({
                 _id: result.memberId,
                 targetKey: 'memberProducts',
@@ -124,6 +126,12 @@ export class ProductService {
             deletedAt: null,
         };
 
+        if (input.productPrice !== undefined) {
+            assertKrwAmount(input.productPrice);
+            // Legacy prices require a separately approved repricing migration.
+            search.currency = 'KRW';
+        }
+
         if (productStatus === ProductStatus.FINISHED) input.soldAt = soldAt = new Date();
         if (deletedAt) input.deletedAt = deletedAt = new Date();
 
@@ -152,6 +160,7 @@ export class ProductService {
         input: ProductsInquiry,
     ): Promise<Products> {
         const match: T = {
+            currency: 'KRW',
             productStatus: ProductStatus.PROCESS,
             deletedAt: null,
         };
@@ -339,6 +348,12 @@ export class ProductService {
             productStatus: { $in: [ProductStatus.PROCESS, ProductStatus.PAUSE] },
             deletedAt: null,
         };
+
+        if (input.productPrice !== undefined) {
+            assertKrwAmount(input.productPrice);
+            // Legacy prices require a separately approved repricing migration.
+            search.currency = 'KRW';
+        }
 
         if (productStatus === ProductStatus.FINISHED) input.soldAt = soldAt = new Date();
         if (deletedAt) input.deletedAt = deletedAt = new Date();

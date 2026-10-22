@@ -9,7 +9,7 @@ import { HttpService } from '@nestjs/axios';
 
 const PORTONE_API_BASE = 'https://api.portone.io';
 
-/** The subset of Petora's PortOne payment used for TEST-only verification. */
+/** The subset of Petora's PortOne payment used for TEST/KRW-only verification. */
 export interface PortonePayment {
 	id: string;
 	status: string;
@@ -38,11 +38,11 @@ export class PortoneService implements OnModuleInit {
 				.every((value) => typeof value === 'string' && value.trim().length > 0);
 	}
 
-	/** Readiness only: current USD orders cannot enter KakaoPay's KRW-only checkout. */
+	/** Readiness only: KRW pricing is ready; provider checkout still requires verified sandbox access. */
 	public getKakaoPayTestAvailability() {
-		const blockers = ['KRW_PRICING_REQUIRED', 'CHECKOUT_NOT_INTEGRATED'];
+		const blockers = ['CHECKOUT_NOT_INTEGRATED'];
 		if (!this.configured) blockers.push('TEST_CHANNEL_NOT_CONFIGURED');
-		return { enabled: false, currency: 'USD', requiredCurrency: 'KRW', blockers };
+		return { enabled: false, currency: 'KRW', requiredCurrency: 'KRW', blockers };
 	}
 
 	public onModuleInit(): void {
@@ -80,13 +80,13 @@ export class PortoneService implements OnModuleInit {
 		}
 		if (!payment || payment.id !== paymentId || payment.storeId !== process.env.PORTONE_STORE_ID ||
 			payment.channel?.type !== 'TEST' || payment.channel.id !== process.env.PORTONE_TEST_CHANNEL_ID ||
-			payment.currency !== 'USD') {
+			payment.currency !== 'KRW') {
 			throw new BadRequestException('Payment identity, TEST channel or currency mismatch');
 		}
 		return payment;
 	}
 
-	/** Petora's paid lookup, adapted to server-owned Gamenix USD cents and order/member bindings. */
+	/** Petora's paid lookup, adapted to server-owned Gamenix integer won and order/member bindings. */
 	public async verifyPaid(
 		paymentId: string,
 		expectedAmount: number,
