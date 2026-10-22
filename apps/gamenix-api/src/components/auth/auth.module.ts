@@ -9,7 +9,8 @@ import { JwtModule } from '@nestjs/jwt';
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: process.env.SECRET_TOKEN,
-        signOptions: { expiresIn: '30d' },
+        signOptions: { algorithm: 'HS256', expiresIn: '30d' },
+        verifyOptions: { algorithms: ['HS256'] },
       }),
     }),
   ],

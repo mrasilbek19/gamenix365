@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import { isEmail } from 'class-validator';
+import { Message } from '../../libs/enums/common.enum';
 
 @Injectable()
 export class AuthService {
@@ -67,9 +68,14 @@ export class AuthService {
     }
 
     public async verifyToken(token: string): Promise<Member> {
-        const member = await this.jwtService.verifyAsync(token);
-        member._id = shapeIntoMongoObjectId(member._id);
-        return member;
+        try {
+            const member = await this.jwtService.verifyAsync(token);
+            member._id = shapeIntoMongoObjectId(member._id);
+            return member;
+        } catch {
+            // JWT errors are authentication failures; never expose provider details or credentials.
+            throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
+        }
     }
 
 }
