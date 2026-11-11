@@ -1,5 +1,23 @@
 # Phase 6 payment-readiness decision report
 
+## Current readiness scope: direct KakaoPay with existing key — 2026-10-29
+
+The user's latest correction replaces PortOne with KakaoPay's direct developer TEST API. Configuration is read from the existing backend `KAKAOPAY_SECRET_KEY`, `KAKAOPAY_CID=TC0ONETIME` and `KAKAOPAY_API_URL=https://open-api.kakaopay.com`; optional sandbox/frontend-origin settings must match the application. No PortOne store/channel/V2 secret/proof or browser SDK is a prerequisite. Key presence/configuration readiness does not prove that KakaoPay accepted the credential or that a payment succeeded. Do not expose the key or modify the real environment automatically.
+
+The direct-only source passes API/batch TypeScript and builds, 429 backend tests (four DB skips; 112 focused payment cases), actual API DI/schema (31 queries/47 mutations), all 75 frontend GraphQL documents, and frontend TypeScript/build (91 pages)/payment/basket regressions. A read-only actual-env check recognizes provider DIRECT, enabled=true, blockers=[] with providerCalls=0 and secretValuesDisplayed=false; the actual environment is unchanged. This is configuration recognition only, not accepted-provider-credential evidence. No browser suite was run for this correction. Owner/state/TID/amount verification, one durable payment claim, verified cancellation and unchanged order/stock/points rules remain required. No real test transaction/refund, live MongoDB concurrency/index validation or production enablement is claimed. See [DIRECT_KAKAOPAY_MIGRATION.md](DIRECT_KAKAOPAY_MIGRATION.md) and `../gamenix365-next/docs/KAKAOPAY_SETUP.md`. Earlier PortOne readiness states below are historical.
+
+## Copied Petora / PortOne readiness — 2026-10-29
+
+The user-approved migration is complete in source and offline validation. The replacement uses Petora PortOne methods/SDK plus the minimal existing-order adapter, authenticates owner-only prepare/verify/cancel, preserves payment history and order/stock/points logic, and stays TEST-only. Actual local PortOne credentials are absent: enabled=false / TEST_CHANNEL_NOT_CONFIGURED. Direct KakaoPay credentials do not supply PortOne V2 authentication. Both backend checks/builds, 406 tests (four DB skips), all 74 frontend documents, frontend typecheck/build and payment/basket regressions pass. No actual payment/refund, live DB/index action or secret change occurred. See PETORA_PORTONE_MIGRATION.md and ../gamenix365-next/docs/KAKAOPAY_SETUP.md. Historical direct-provider activation instructions below are superseded.
+
+## Direct TEST readiness — 2026-10-28
+
+The direct KakaoPay implementation and local validation are complete. The running API reports provider DIRECT, enabled false, DIRECT_TEST_NOT_CONFIGURED; no development secret is configured. Add KAKAOPAY_SECRET_KEY_DEV to the existing backend environment and register http://localhost:3000 (or the configured matching origin) in the KakaoPay application's Web platform. DIRECT/SANDBOX and the localhost origin were selected without modifying existing secrets. A PortOne store/channel/proof is not a prerequisite for this direct flow. Frontend/API/batch typechecks and builds, 445 backend tests (four opt-in DB skips), 75 GraphQL documents, private-token checks and direct/retained-provider browser fixtures pass. Actual merchant end-to-end validation awaits the user's app key; production execution, recurring billing and automated refund/webhook processing are not enabled.
+
+## Implemented sandbox flow; activation inputs missing — 2026-10-28
+
+The current narrow KakaoPay implementation is complete in source and fixture validation: durable owner-bound attempts, server KRW totals, official desktop/mobile SDK checkout, verified capture persistence and saved-order recovery. Full frontend/API/batch typechecks, isolated builds, backend/frontend regressions, actual schema/document validation and eight isolated browser scenarios pass. Actual local readiness remains TEST_CHANNEL_NOT_CONFIGURED; no merchant credentials or real provider proof exist yet. Follow gamenix365-next/docs/KAKAOPAY_SETUP.md. Runtime has an empty kakaoPayPayments collection with both required unique indexes. Production execution, automated webhooks/refund/reconciliation and real merchant end-to-end verification remain outside this test implementation. Earlier removed payment architectures below remain historical.
+
 > Historical implementation, superseded on 2026-10-20 by the Petora simplification. The custom system described below was removed; use the latest COMPLETED_TASKS and NEXT_STEPS for current behavior.
 
 Date: 2026-10-17. Status: **Petora PortOne REST lookup adapted; actual provider checkout remains disabled**.

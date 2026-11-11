@@ -1,5 +1,13 @@
 # Native KRW migration — 2026-10-21
 
+## Approved development product conversion completed — 2026-10-28
+
+The user explicitly approved converting all four existing products using a current USD-to-KRW rate, with historical orders/items retained as USD. This supersedes the pending-price restriction below only for these four development products. Used the latest published [ECB reference rates](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html), dated 2026-10-27: EUR/USD 1.1150 and EUR/KRW 1480.44. Derived exactly 296088/223 KRW per USD (1327.7488789237668), using rational arithmetic and nearest-whole-won rounding.
+
+Applied the four prices in the table below in place, preserving IDs/references, ownership, stock and lifecycle. The one-off reviewed script checks exact original values and applies all four productPrice/currency/updatedAt changes atomically in a Mongo snapshot/majority transaction. Durable original EJSON documents, exact plan, raw ECB source/date, historical document hashes, migration/rollback script and verification receipt are under the ignored private gamenix365/.tmp/currency-backups/2026-10-28-usd-to-krw directory. Existing five orders and seven item documents are byte-equivalent under canonical EJSON hashes before/after; their original USD amounts and references are unchanged. No payment, stock or account operation occurred.
+
+The exact live frontend GET_PRODUCTS document now returns all four KRW products; category and explicit price filters pass. Frontend defaults no longer impose a 2000000-won upper limit that would hide the converted KEYboard product. Existing explicit price filters and legacy-currency checkout guards remain. Future legacy records still require separately authorized pricing; no automatic FX or migration API was added. See the newest COMPLETED_TASKS entry for upload repair, test results and the unrelated baseline frontend typecheck limitation.
+
 ## Implemented for new records
 
 New products are created server-side with currency=KRW and nonnegative safe-integer prices. Product create/update DTOs reject fractions and unsafe integers. Both SHOP and ADMIN price updates require an already-KRW product; ordinary edits cannot silently convert legacy prices. Public catalog queries select explicit KRW products. Direct legacy links, favorites and management cards show a repricing notice instead of relabeling the old amount; basket addition/restoration/mixed-currency guards reject legacy snapshots.
@@ -23,18 +31,18 @@ The user specified: “50 to normal products 70 to furniture”. These are imple
 
 Examples: normal ₩49,999 → ₩50,049 total; furniture ₩49,999 → ₩50,069; ₩50,000 and ₩75,000 → free shipping. The threshold uses product subtotal before shipping.
 
-## Read-only database audit and pending decisions
+## Historical read-only database audit — 2026-10-21
 
 The configured development database was read without writes. Before/after audit IDs, currency fields and financial amounts match exactly: **4 products, 5 orders, 7 order items; no payments/paymentEvents collections**. All 16 records lack explicit currency and are treated as legacy USD according to the previous application contract. Production databases were not inspected. Full local audit artifact: /private/tmp/gamenix-currency-audit.json (not committed).
 
-Legacy product prices requiring explicit native KRW decisions:
+Originally audited legacy product prices, with user-approved conversion applied on 2026-10-28:
 
 | Product ID | Name | Original USD price | Approved KRW price |
 | --- | --- | ---: | --- |
-| 6ac9c60b7f368a0d7d7e167b | KEYboard | 3234 | Pending |
-| 6aca0d93b68185e183e5f3ae | bouse | 32 | Pending |
-| 6aca10b3b68185e183e5f3b6 | qirioqwrywqiry | 44 | Pending |
-| 6aca10d1b68185e183e5f3bc | qweqe | 323 | Pending |
+| 6ac9c60b7f368a0d7d7e167b | KEYboard | 3234 | 4293940 (applied 2026-10-28) |
+| 6aca0d93b68185e183e5f3ae | bouse | 32 | 42488 (applied 2026-10-28) |
+| 6aca10b3b68185e183e5f3b6 | qirioqwrywqiry | 44 | 58421 (applied 2026-10-28) |
+| 6aca10d1b68185e183e5f3bc | qweqe | 323 | 428863 (applied 2026-10-28) |
 
 Original orders (no conversion or relabeling approved):
 
@@ -56,7 +64,7 @@ Original order item IDs (all amounts preserved):
 - 6ad838690d07136d81afc3c3 — USD 323 × 1; order 6ad838690d07136d81afc3c1
 - 6ad84a9de5de294db5131398 — USD 323 × 1; order 6ad84a9de5de294db5131396
 
-## Proposed migration policy — approval required before writes
+## Historical proposed migration policy — four-product exception approved above
 
 1. Supply native KRW prices keyed by the four product IDs. No exchange rate, multiplication, rounding or numerical relabeling is inferred. Existing entries stay excluded from the public KRW catalog until repriced/replaced.
 2. Prefer replacement KRW listings while retaining original USD product records and old order references. If in-place repricing is requested instead, first approve a durable original-value audit/backup and a reviewed compare-and-set plan matching product ID, old price and old currency. No apply script or data write is included here.

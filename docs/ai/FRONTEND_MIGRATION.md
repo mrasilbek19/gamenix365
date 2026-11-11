@@ -1,5 +1,27 @@
 # Frontend migration plan
 
+## Current checkout provider: direct KakaoPay — 2026-10-29
+
+The user's latest correction selects KakaoPay's direct developer TEST API with the existing backend development key. The current checkout layout, Apollo integration, createOrder/cart flow, saved-order return and owner/unmount isolation are retained while PortOne SDK execution is replaced by backend ready URLs and owner/state-bound approval. The browser receives no development secret. Capture `pg_token`/state only ephemerally; remove callback markers from the URL/Next history before guest/loading/error states, and let backend order verification alone establish paid/refunded status. Historical PortOne payment records stay read-only. Direct-only frontend TypeScript, production build (91 pages), payment/basket regression scripts and all 75 frontend documents pass; actual API DI/schema and the 429-test backend suite also pass (four DB skips). No browser suite or real provider transaction was run for this correction; earlier PortOne browser results below remain historical. See `../gamenix365-next/docs/KAKAOPAY_SETUP.md` and [DIRECT_KAKAOPAY_MIGRATION.md](DIRECT_KAKAOPAY_MIGRATION.md).
+
+## Petora / PortOne checkout adopted — 2026-10-29
+
+The existing KakaoPayCheckout and order-process layout now use the adapted Petora libs/payment/portone.ts helper and @portone/browser-sdk. Existing createOrder, KRW pricing, one-shop basket, order resume and owner isolation remain; direct SDK/API switching and direct approval documents are removed. Only authoritative backend status displays confirmed payment. Added owner-confirmed pre-processing full cancellation/pending-refund labels in en/kr/ru, retaining current UI styling. Frontend TypeScript/build (91 pages), payment/basket regressions and all 74 GraphQL documents pass. Real provider credentials are absent; no actual payment was attempted. See PETORA_PORTONE_MIGRATION.md and ../gamenix365-next/docs/KAKAOPAY_SETUP.md.
+
+## Direct KakaoPay redirects and private approval callbacks — 2026-10-28
+
+Availability/status now identify DIRECT or PORTONE. DIRECT checkout uses the new ready operation and the official allowlisted PC/mobile URLs without loading the PortOne SDK; retained PORTONE checkout still uses its original nonnullable session fields. The process page captures callback state/pg_token in private memory, immediately clears them from the address/Next history across guest/loading/error states, and authenticates the saved owner before Apollo approval. All success still depends on verified backend capture. Login referrers stay clean and the callback route sends no-referrer headers. New direct regression/browser cases and existing PortOne cases pass. No cart/order recreation, stock/points change, recurring subscription, new dependency or secret-in-frontend setting was added. See gamenix365-next/docs/KAKAOPAY_SETUP.md.
+
+## KakaoPay test checkout and saved-order recovery — 2026-10-28
+
+The existing KakaoPayCheckout now prepares server-owned payment details, loads the official PortOne V2 SDK on demand and verifies/polls through Apollo before displaying success. /orders/process?orderId restores the owned saved order after refresh/mobile redirects without creating another order. My Orders exposes eligible KRW payment links. Duplicate clicks, pending/unknown outcomes, failed SDK loads, cancelled attempts and account/unmount changes have focused tests. Missing test configuration keeps checkout unavailable with a retry action; setup is documented in gamenix365-next/docs/KAKAOPAY_SETUP.md. The old error-page wrapper type annotation is corrected so frontend typecheck/build now pass. No cart/order/stock/point rules or historical USD values changed.
+
+## Profile upload and converted product visibility restored — 2026-10-28
+
+MyProfile now reuses uploadImages with one member image, targeting the working imagesUploader operation. It preserves manual profile-save/JWT adoption and adds upload progress, in-flight save blocking, same-file retries and protection against late cross-owner results. The existing single imageUploader backend resolver mishandles the scalar's Promise; no backend resolver rewrite was needed.
+
+The user-approved one-time development product conversion is complete (see KRW_MIGRATION.md). Default catalog queries now omit the old 2000000-won maximum so the converted 4293940-won product appears. Shared price-input handling preserves explicit ranges and URLs, allows an empty maximum, and uses GraphQL Int's endpoint limit only for explicit minimum-only ranges. Existing Apollo, categories, ownership and historical USD order behavior remain. New profile-upload/price-filter tests and existing shop-name/currency/category regressions pass; full frontend typecheck still reports only the preexisting pages/_error.tsx:17 wrapper error.
+
 ## KRW formatting and server shipping policy — 2026-10-21
 
 Frontend now selects currency/subtotal fields, uses shared locale-aware integer KRW formatting, reads getShippingPolicy for estimates and blocks old/mixed-currency basket snapshots. SHOP price input has integer won steps. Active KRW pricing UI has no USD or dollar labels; historical USD order views preserve original money. Public legacy products require approved repricing. Payment confirmation shows a saved unpaid KRW order and honest provider blocker. See KRW_MIGRATION.md.

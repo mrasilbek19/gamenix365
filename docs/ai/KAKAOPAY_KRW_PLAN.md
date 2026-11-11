@@ -1,5 +1,23 @@
 # KakaoPay sandbox and native KRW pricing plan — 2026-10-21
 
+## Direct KakaoPay correction; KRW rules unchanged — 2026-10-29
+
+The user now explicitly requires direct KakaoPay using the existing backend `KAKAOPAY_SECRET_KEY`, `KAKAOPAY_CID=TC0ONETIME` and official `KAKAOPAY_API_URL`. PortOne credentials/channel proof/SDK are not required for this path. Keep the existing native KRW products/order snapshots, approved shipping/pickup fees and historical USD data unchanged; no FX, repricing or currency migration is authorized. Direct owner-bound ready/approve/order/full-cancel verification must remain separate from fulfillment, stock and points. The correction passes API/batch checks/builds, 429 backend tests (four DB skips), all 75 frontend GraphQL documents and frontend typecheck/build/payment/basket regressions. Existing direct environment settings are recognized without a provider call; no real payment/refund or provider acceptance is claimed. Current setup is `../gamenix365-next/docs/KAKAOPAY_SETUP.md`; older PortOne-only/direct `_DEV` key instructions below are historical.
+
+## Current provider implementation — 2026-10-29
+
+The approved replacement copies Petora/PortOne V2 and keeps existing native KRW pricing/shipping and historical USD data unchanged. Direct KakaoPay execution is retired; KAKAOPAY_CID/SECRET_KEY/API_URL remain private and untouched but cannot authenticate PortOne. Configure the PortOne test merchant/channel/V2 secret/proof as documented in ../gamenix365-next/docs/KAKAOPAY_SETUP.md. No FX, repricing, data migration or fulfillment change was performed. See PETORA_PORTONE_MIGRATION.md; earlier direct setup descriptions below are historical.
+
+## Direct KakaoPay TEST implementation — 2026-10-28
+
+The latest direct-API request supersedes PortOne-only setup for the chosen development path. DirectKakaoPayService uses KakaoPay's documented JSON ready/approve/order APIs with fixed TC0ONETIME and a server-only development secret. Product orders remain one-time; no TCSUBSCRIP/SID recurring billing is created. PortOne remains an optional separate provider, sharing the unique order ledger to prevent cross-provider duplication. Callback nonces, saved TIDs, serialized approval, exact provider facts and CAS capture persistence replace callback-only success. The current development configuration selects DIRECT/SANDBOX and localhost; missing KAKAOPAY_SECRET_KEY_DEV keeps actual availability disabled. Register the application's Web origin and supply its Secret key(dev), following gamenix365-next/docs/KAKAOPAY_SETUP.md. Unknown preparation/approval outcomes and expired sessions require reconciliation; do not blindly recreate an order/transaction. No real provider test was possible without the user's key.
+
+## Sandbox integration delivered — 2026-10-28
+
+This section supersedes the earlier planning-only/unimplemented descriptions below. Native KRW pricing and the user-approved product conversion are complete (KRW_MIGRATION.md). PortOne V2 KakaoPay checkout is implemented through authenticated order-owned prepare/status/verify operations and the official browser SDK. Attempts have stable IDs and immutable server totals/bindings; paid requires trusted full-capture evidence persisted by the backend. Retries, callbacks, redirects, version conflicts and cancelled payment recovery are covered without altering order stock/points/status behavior.
+
+Merchant activation still requires PORTONE_ENVIRONMENT=SANDBOX, PORTONE_STORE_ID, PORTONE_TEST_CHANNEL_KEY, server-only PORTONE_V2_API_SECRET and PORTONE_TEST_CHANNEL_PROOF_PAYMENT_ID. The proof is an independently created TEST transaction on the merchant's own KakaoPay channel (for example through PortOne's official SDK playground), verified via the documented authenticated payment lookup. Environment strings or preregistration alone do not establish channel type. The real local environment has none of these credentials, so enabled=false remains correct until setup. Production/live payments stay disabled. See gamenix365-next/docs/KAKAOPAY_SETUP.md for exact console/playground steps, the blank backend .env.example, and the newest COMPLETED_TASKS entry for all validation. No actual merchant payment was attempted.
+
 ## Implementation update — 2026-10-21
 
 Native KRW fields/validation, approved shipping and locale-aware UI for new records are implemented. Historical native-price approval and actual sandbox integration remain outstanding. KRW_MIGRATION.md supersedes the current-state/planning-only descriptions below; no historical data was converted.
