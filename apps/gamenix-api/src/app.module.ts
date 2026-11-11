@@ -31,7 +31,8 @@ import { SocketModule } from './socket/socket.module';
           },
         };
 
-        console.log("GRAPHQL GLOBAL ERR:", graphQLFormattedError);
+        // Variable-coercion errors can include callback tokens before interceptors run.
+        console.log("GRAPHQL GLOBAL ERR:", graphQLFormattedError.code);
         return graphQLFormattedError;
       },
     }),

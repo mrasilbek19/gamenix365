@@ -27,9 +27,10 @@ export class LoggingInterceptor implements NestInterceptor {
             const gqlContext = GqlExecutionContext.create(context);
             const fieldName = gqlContext.getInfo()?.fieldName;
             const body = gqlContext.getContext().req.body;
-            const privateOperation = /\b(requestPasswordReset|verifyPasswordResetCode|resetPassword)\b/;
-            const privateRequest = ['requestPasswordReset', 'verifyPasswordResetCode', 'resetPassword'].includes(fieldName)
-                || (Array.isArray(body) ? body : [body]).some((request) => privateOperation.test(request?.query ?? ''));
+            const privateOperation = /\b(requestPasswordReset|verifyPasswordResetCode|resetPassword|(?:get|prepare|approve|verify|cancel)(?:Direct)?KakaoPay\w*)\b/;
+            const privateRequest = privateOperation.test(fieldName ?? '') ||
+                (Array.isArray(body) ? body : [body]).some((request) => privateOperation.test(request?.query ?? '') ||
+                    /"(?:pgToken|pg_token|kakaoState|state)"\s*:/.test(JSON.stringify(request?.variables ?? {})));
             this.logger.log(privateRequest ? fieldName : `${this.stringify(gqlContext.getContext().req.body)}`, 'REQUEST');
 
             return next.handle().pipe(
