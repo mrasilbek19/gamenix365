@@ -4,6 +4,8 @@ import { PaymentMethod } from '../../enums/payment.enum';
 
 @ObjectType()
 export class KakaoPayTestAvailability {
+    @Field(() => String)
+    provider: string;
 	@Field(() => Boolean)
 	enabled: boolean;
 
